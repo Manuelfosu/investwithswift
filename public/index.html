@@ -1,0 +1,2126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0A2540" />
+<title>Swift Investments — Mobile</title>
+<meta name="description" content="Swift Investments — a clean, trustworthy mobile investment portal." />
+
+<!-- =========================================================================
+  SWIFT INVESTMENTS — SINGLE-FILE MOBILE APP PREVIEW
+  -------------------------------------------------------------------------
+  Mobile-first, app-style preview. React + Tailwind + Chart.js via CDN.
+
+  NAVIGATION: hash routes (#/dashboard, #/plans, #/deposit, ...).
+    - Public: landing, login, register.
+    - Authenticated pages render inside <AppShell/> (top bar + bottom tab bar).
+
+  ADD A NEW PAGE:
+    1. Build a component under "PAGE COMPONENTS".
+    2. Register it in ROUTES ("ROUTES MAP").
+    3. Optionally add a tab in BOTTOM_NAV.
+
+  ADD A NEW INVESTMENT PLAN: add an entry to the PLANS array.
+  BACKEND HOOKS: all data is mock (see "API SERVICE"). Swap each method body
+  for a real fetch() call — each names its endpoint.
+========================================================================== -->
+
+<!-- Pinned, reliable CDN builds (development React = readable error messages). -->
+<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.development.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.25.6/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          navy:   { DEFAULT:'#0A2540', 50:'#eef2f7', 100:'#d6e0ec', 600:'#0f3a63', 700:'#0A2540', 800:'#08203a', 900:'#06182b' },
+          brand:  { DEFAULT:'#1E6FE8', 600:'#1E6FE8', 700:'#1657c0' },
+          profit: { DEFAULT:'#16A34A', soft:'#dcfce7' },
+          loss:   { DEFAULT:'#DC2626', soft:'#fee2e2' },
+          gold:   { DEFAULT:'#F59E0B', soft:'#fef3c7' }
+        },
+        fontFamily: { sans:['Inter','system-ui','Segoe UI','Roboto','sans-serif'] },
+        boxShadow:  { card:'0 1px 3px rgba(10,37,64,.08), 0 1px 2px rgba(10,37,64,.06)', pop:'0 10px 30px rgba(10,37,64,.18)' },
+        keyframes:  {
+          fadeUp:{ '0%':{ opacity:0, transform:'translateY(10px)' }, '100%':{ opacity:1, transform:'translateY(0)' } },
+          pop:{ '0%':{ opacity:0, transform:'scale(.96)' }, '100%':{ opacity:1, transform:'scale(1)' } }
+        },
+        animation:  { fadeUp:'fadeUp .4s ease both', pop:'pop .25s ease both' }
+      }
+    }
+  };
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html{scroll-behavior:smooth}
+  body{font-family:'Inter',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+  .skeleton{position:relative;overflow:hidden;background:rgba(10,37,64,.08)}
+  .dark .skeleton{background:rgba(255,255,255,.08)}
+  .skeleton::after{content:'';position:absolute;inset:0;transform:translateX(-100%);background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);animation:shimmer 1.4s infinite}
+  @keyframes shimmer{100%{transform:translateX(100%)}}
+  .no-scrollbar::-webkit-scrollbar{display:none}
+  .no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+  .safe-bottom{padding-bottom:env(safe-area-inset-bottom)}
+</style>
+</head>
+<body class="bg-slate-100 dark:bg-navy-900 text-navy-800 dark:text-slate-100 antialiased">
+<div id="root">
+  <div id="boot" style="min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,sans-serif;color:#64748b;font-size:14px">Loading Swift Investments…</div>
+</div>
+<noscript><div style="padding:24px;font-family:sans-serif;color:#0A2540">This preview needs JavaScript enabled.</div></noscript>
+<script>
+  // Never show a blank page: surface load/runtime failures to the user.
+  function swiftShowError(msg, detail){
+    var r = document.getElementById('root'); if(!r) return;
+    r.innerHTML = '<div style="max-width:560px;margin:48px auto;font-family:Inter,system-ui,sans-serif;padding:28px;border:1px solid #fee2e2;background:#fff;border-radius:16px;color:#0A2540;box-shadow:0 1px 3px rgba(10,37,64,.08)">'
+      + '<div style="font-size:28px">⚠️</div><h2 style="margin:8px 0 6px;font-size:18px">' + msg + '</h2>'
+      + '<p style="color:#64748b;font-size:13px;line-height:1.5;margin:0">' + (detail||'') + '</p>'
+      + '<p style="color:#94a3b8;font-size:12px;margin-top:12px">This preview loads React, Tailwind and Chart.js from a CDN, so it needs internet access. Reload once you are online.</p></div>';
+  }
+  window.addEventListener('error', function(e){ if(document.getElementById('boot')) swiftShowError('Something failed to load', (e && e.message) || 'Script error'); });
+  setTimeout(function(){
+    if(!document.getElementById('boot')) return;
+    var missing = [];
+    if(!window.React) missing.push('React');
+    if(!window.ReactDOM) missing.push('ReactDOM');
+    if(!window.Babel) missing.push('Babel');
+    if(!window.Chart) missing.push('Chart.js');
+    if(missing.length) swiftShowError('Could not load required libraries', 'Missing: ' + missing.join(', ') + '.');
+  }, 7000);
+</script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, createContext, useContext } = React;
+const ChartJS = window.Chart;
+
+/* ---------- formatting helpers (Ghana Cedi) ---------- */
+const cedi  = (n)=> '₵' + Number(n||0).toLocaleString('en-US',{ minimumFractionDigits:2, maximumFractionDigits:2 });
+const cedi0 = (n)=> '₵' + Number(n||0).toLocaleString('en-US',{ maximumFractionDigits:0 });
+const pct   = (n)=> (n>=0?'+':'') + Number(n).toFixed(1) + '%';
+const cx    = (...a)=> a.filter(Boolean).join(' ');
+
+/* =========================================================================
+   INVESTMENT PLANS   >>> ADD / EDIT A PLAN HERE <<<
+   total = daily * days (return over the validity period)
+========================================================================= */
+const PLANS = [
+  { name:'VIP 1',        price:100,  daily:20,   days:30, tag:'Starter',    accent:'brand'  },
+  { name:'VIP 2',        price:200,  daily:40,   days:30, tag:'Popular',    accent:'brand'  },
+  { name:'VIP 3',        price:500,  daily:125,  days:30, tag:null,         accent:'navy'   },
+  { name:'Mega VIP',     price:1000, daily:250,  days:30, tag:null,         accent:'navy'   },
+  { name:'Super VIP',    price:2000, daily:500,  days:30, tag:null,         accent:'gold'   },
+  { name:'Ultimate VIP', price:5000, daily:1250, days:30, tag:'Best value', accent:'gold'   }
+];
+
+/* Deposit quick amounts grid */
+const DEPOSIT_AMOUNTS = [100, 200, 300, 500, 1000, 2000, 5000];
+
+/* Telecel Cash receiver details (move to backend/config in production) */
+const PAYEE = { number:'0509469973', name:'Rebecca Dadzie', note:'Telecel Cash' };
+
+/* =========================================================================
+   MOCK DATA  — replace with API responses (see API SERVICE)
+========================================================================= */
+const MOCK = {
+  user:{ name:'Emma Highest', phone:'0541234567', tier:'VIP 2', joined:'Mar 2024', avatar:'EH' },
+  balance:3250.00, invested:2000, available:1250.00, todayPL:120.00, totalPL:640.00, totalPLPct:24.5,
+  performance:{ labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], values:[2610,2680,2740,2810,2960,3080,3250] },
+  active:[
+    { name:'VIP 2', daily:40, days:30, dayOf:12 },
+    { name:'VIP 1', daily:20, days:30, dayOf:24 }
+  ],
+  transactions:[
+    { id:'TXN-10241', date:'2026-06-15', type:'Income',     amount:60,   status:'Completed' },
+    { id:'TXN-10238', date:'2026-06-14', type:'Deposit',    amount:500,  status:'Completed' },
+    { id:'TXN-10231', date:'2026-06-12', type:'Investment', amount:200,  status:'Completed' },
+    { id:'TXN-10225', date:'2026-06-10', type:'Withdrawal', amount:300,  status:'Pending'   },
+    { id:'TXN-10219', date:'2026-06-08', type:'Income',     amount:40,   status:'Completed' },
+    { id:'TXN-10204', date:'2026-06-05', type:'Withdrawal', amount:150,  status:'Failed'    }
+  ],
+  notifications:[
+    { id:1, title:'Daily income credited', body:'₵60.00 added from your active plans.', time:'2h', tone:'profit', unread:true },
+    { id:2, title:'Deposit confirmed',     body:'₵500.00 added to your wallet.',        time:'5h', tone:'brand',  unread:true },
+    { id:3, title:'Withdrawal pending',    body:'₵300.00 withdrawal is under review.',   time:'1d', tone:'loss',   unread:false }
+  ]
+};
+
+/* Sample referral data shown in DEMO mode (offline / static hosting). */
+const MOCK_REFERRAL = {
+  code:'EMMA-7F3A', rate:0.20, totalReferred:3, totalEarned:480,
+  referrals:[
+    { name:'Kwabena Osei', email:'kwabena@swift.io', joined:'Jun 2026', deposited:600,  earned:120, status:'active' },
+    { name:'Ama Serwaa',   email:'ama@swift.io',     joined:'Jun 2026', deposited:300,  earned:60,  status:'active' },
+    { name:'Kojo Antwi',   email:'kojo@swift.io',    joined:'Jun 2026', deposited:1500, earned:300, status:'active' }
+  ]
+};
+
+/* =========================================================================
+   ADMIN DEMO DATA  — sample records shown in the Admin console when no
+   backend is connected (preview / static hosting). Live data replaces this.
+========================================================================= */
+const ADMIN_DEMO = {
+  me: { name:'Swift Admin', email:'admin@swift.io', avatar:'AD', role:'admin' },
+  stats: { users:6, totalBalance:48250, totalInvested:31500, totalAvailable:16750, pendingWithdrawals:3, pendingDeposits:2, activePlans:9 },
+  users: [
+    { id:1, name:'Emma Highest',   email:'demo@swift.io',   phone:'0541234567', role:'user',  tier:'VIP 2',     balance:3250,  available:1250, code:'EMMA-7F3A',  referredBy:null,             joined:'Mar 2024', createdAt:'2024-03-12 09:14', lastLogin:'2026-06-18 08:02' },
+    { id:2, name:'Swift Admin',    email:'admin@swift.io',  phone:'',           role:'admin', tier:'VIP 1',     balance:0,     available:0,    code:'SWIFT-1A2B', referredBy:null,             joined:'Jun 2026', createdAt:'2026-06-01 00:00', lastLogin:'2026-06-18 09:10' },
+    { id:3, name:'Kwame Mensah',   email:'kwame@swift.io',  phone:'0207654321', role:'user',  tier:'VIP 3',     balance:8600,  available:3100, code:'KWAME-2B1C', referredBy:null,             joined:'Apr 2026', createdAt:'2026-04-18 14:30', lastLogin:'2026-06-17 21:48' },
+    { id:4, name:'Akosua Boateng', email:'akosua@swift.io', phone:'0264455667', role:'user',  tier:'Mega VIP',  balance:15400, available:6200, code:'AKOSU-9D4E', referredBy:'demo@swift.io',  joined:'May 2026', createdAt:'2026-05-03 11:05', lastLogin:'2026-06-18 07:20' },
+    { id:5, name:'Yaw Owusu',      email:'yaw@swift.io',    phone:'0559988776', role:'user',  tier:'VIP 1',     balance:1200,  available:900,  code:'YAWOW-3C5D', referredBy:'kwame@swift.io', joined:'Jun 2026', createdAt:'2026-06-10 16:42', lastLogin:'2026-06-16 12:09' },
+    { id:6, name:'Adwoa Sarpong',  email:'adwoa@swift.io',  phone:'0241122334', role:'user',  tier:'Super VIP', balance:19800, available:5300, code:'ADWOA-8E2F', referredBy:null,             joined:'Feb 2026', createdAt:'2026-02-20 08:55', lastLogin:'2026-06-18 06:33' }
+  ],
+  transactions: [
+    { id:1, txid:'TXN-10241', date:'2026-06-15', user:'demo@swift.io',   type:'Income',     amount:60,   status:'Completed' },
+    { id:2, txid:'TXN-10238', date:'2026-06-14', user:'kwame@swift.io',  type:'Deposit',    amount:500,  status:'Completed' },
+    { id:3, txid:'TXN-10231', date:'2026-06-12', user:'akosua@swift.io', type:'Withdrawal', amount:1200, status:'Pending'   },
+    { id:4, txid:'TXN-10225', date:'2026-06-10', user:'demo@swift.io',   type:'Withdrawal', amount:300,  status:'Pending'   },
+    { id:5, txid:'TXN-10222', date:'2026-06-09', user:'yaw@swift.io',    type:'Deposit',    amount:200,  status:'Pending'   },
+    { id:6, txid:'TXN-10204', date:'2026-06-05', user:'adwoa@swift.io',  type:'Withdrawal', amount:150,  status:'Failed'    }
+  ],
+  subscriptions: [
+    { id:1, name:'VIP 2',     user:'demo@swift.io',   price:200,  daily:40,  days:30, dayOf:12, status:'active' },
+    { id:2, name:'VIP 1',     user:'demo@swift.io',   price:100,  daily:20,  days:30, dayOf:24, status:'active' },
+    { id:3, name:'VIP 3',     user:'kwame@swift.io',  price:500,  daily:125, days:30, dayOf:8,  status:'active' },
+    { id:4, name:'Mega VIP',  user:'akosua@swift.io', price:1000, daily:250, days:30, dayOf:30, status:'completed' },
+    { id:5, name:'Super VIP', user:'adwoa@swift.io',  price:2000, daily:500, days:30, dayOf:3,  status:'active' }
+  ],
+  logs: [
+    { id:1, time:'2026-06-15 09:42', action:'auth.login',          user:'admin@swift.io',  actor:'admin@swift.io',  detail:'Admin signed in' },
+    { id:2, time:'2026-06-15 09:45', action:'admin.tx.status',     user:'kwame@swift.io',  actor:'admin@swift.io',  detail:'Approved TXN-10238 (Deposit ₵500)' },
+    { id:3, time:'2026-06-14 18:10', action:'wallet.deposit',      user:'kwame@swift.io',  actor:'kwame@swift.io',  detail:'Deposit of ₵500 confirmed' },
+    { id:4, time:'2026-06-14 12:03', action:'admin.wallet.adjust', user:'yaw@swift.io',    actor:'admin@swift.io',  detail:'Credited ₵100 — goodwill bonus' },
+    { id:5, time:'2026-06-13 15:30', action:'plans.subscribe',     user:'akosua@swift.io', actor:'akosua@swift.io', detail:'Subscribed to Mega VIP' },
+    { id:6, time:'2026-06-12 11:22', action:'admin.user.role',     user:'yaw@swift.io',    actor:'admin@swift.io',  detail:'Role set to user' },
+    { id:7, time:'2026-06-10 08:05', action:'wallet.withdraw',     user:'demo@swift.io',   actor:'demo@swift.io',   detail:'Requested withdrawal of ₵300' }
+  ],
+  referrals: [
+    { id:1, name:'Emma Highest',   email:'demo@swift.io',   code:'EMMA-7F3A',  referredCount:3, earned:480, referredBy:null },
+    { id:3, name:'Kwame Mensah',   email:'kwame@swift.io',  code:'KWAME-2B1C', referredCount:1, earned:100, referredBy:null },
+    { id:4, name:'Akosua Boateng', email:'akosua@swift.io', code:'AKOSU-9D4E', referredCount:0, earned:0,   referredBy:'demo@swift.io' },
+    { id:5, name:'Yaw Owusu',      email:'yaw@swift.io',    code:'YAWOW-3C5D', referredCount:0, earned:0,   referredBy:'kwame@swift.io' },
+    { id:6, name:'Adwoa Sarpong',  email:'adwoa@swift.io',  code:'ADWOA-8E2F', referredCount:0, earned:0,   referredBy:null }
+  ]
+};
+
+/* =========================================================================
+   API SERVICE (mock) — swap each body for a real fetch()
+========================================================================= */
+function delay(data, ms){ return new Promise(function(res){ setTimeout(function(){ res(data); }, ms||300); }); }
+
+/* =========================================================================
+   WHERE IS THE BACKEND?  (read this if you deploy)
+   -------------------------------------------------------------------------
+   • Leave BACKEND_URL = '' to (a) use the live database when this file is
+     served by your own backend (http://localhost:4000), or (b) run as a
+     self-contained DEMO with built-in data when hosted on GitHub Pages or
+     opened directly from disk.
+   • Once you host the backend on a free server (e.g. Render), paste its URL
+     here, e.g.  const BACKEND_URL = 'https://swift-api.onrender.com';
+     Then the GitHub Pages site will use your REAL database.
+========================================================================= */
+const BACKEND_URL = ''; // <<< paste your hosted backend URL here to go fully live
+const API_BASE =
+  BACKEND_URL ? (BACKEND_URL.replace(/\/$/, '') + '/api')
+  : ((location.protocol === 'http:' || location.protocol === 'https:') ? '/api' : null);
+
+/* DEMO_MODE = true when no live backend is reachable. Lets the Admin console
+   render with sample data in the preview / on static hosting. It flips on
+   after any offline or failed request. */
+let DEMO_MODE = !API_BASE;
+
+/* Called whenever the backend reports an expired/invalid session (HTTP 401).
+   AppProvider registers the real handler, which signs the user out and routes
+   them to the login screen. */
+let unauthorizedHandler = null;
+function onUnauthorized(){ if(typeof unauthorizedHandler === 'function') unauthorizedHandler(); }
+
+async function apiGet(path, fallback){
+  if(!API_BASE){ DEMO_MODE = true; return delay(fallback); }
+  let r;
+  try{
+    r = await fetch(API_BASE + path, { credentials:'include' });
+  }catch(err){ DEMO_MODE = true; console.warn('[api] offline — using demo data for', path); return delay(fallback); }
+  if(r.status === 401){ onUnauthorized(); const e = new Error('Your session has expired. Please log in again.'); e.handled = true; e.unauthorized = true; throw e; }
+  if(!r.ok){ DEMO_MODE = true; console.warn('[api] backend unavailable — using demo data for', path); return delay(fallback); }
+  return await r.json();
+}
+async function apiPost(path, body, fallback){
+  if(!API_BASE){ DEMO_MODE = true; return delay(fallback); }
+  let r;
+  try{
+    r = await fetch(API_BASE + path, { method:'POST', headers:{ 'Content-Type':'application/json' }, credentials:'include', body: JSON.stringify(body||{}) });
+  }catch(err){
+    // Genuine network/offline failure — fall back to demo behaviour.
+    DEMO_MODE = true; console.warn('[api] offline — using demo response for', path); return delay(fallback);
+  }
+  // Expired/invalid session on a protected action: sign out and redirect.
+  if(r.status === 401 && path.indexOf('/auth/') !== 0){ onUnauthorized(); const e = new Error('Your session has expired. Please log in again.'); e.handled = true; e.unauthorized = true; throw e; }
+  if(!r.ok){
+    // A reachable backend returns JSON { error } for real validation problems
+    // (bad credentials, min withdrawal, insufficient balance, etc). If there is
+    // no JSON error the backend simply isn't there (e.g. static hosting) — fall
+    // back to demo behaviour so the preview still works.
+    const e = await r.json().catch(function(){ return null; });
+    if(e && e.error){ const err = new Error(e.error); err.handled = true; throw err; }
+    DEMO_MODE = true; console.warn('[api] backend unavailable — using demo response for', path); return delay(fallback);
+  }
+  return await r.json();
+}
+
+/* One-shot session probe used at startup to decide where to send the user:
+   'authed' (valid session), 'guest' (no/expired session), or 'offline'
+   (no backend reachable — preview/demo). Never triggers a redirect itself. */
+async function probeSession(){
+  if(!API_BASE){ DEMO_MODE = true; return { state:'offline' }; }
+  let r;
+  try{ r = await fetch(API_BASE + '/me', { credentials:'include' }); }
+  catch(e){ DEMO_MODE = true; return { state:'offline' }; }
+  if(r.status === 401) return { state:'guest' };
+  if(!r.ok){ DEMO_MODE = true; return { state:'offline' }; }
+  try{ const u = await r.json(); return (u && u.email) ? { state:'authed', user:u } : { state:'guest' }; }
+  catch(e){ return { state:'guest' }; }
+}
+
+const api = {
+  getProfile:       ()=> apiGet('/me', MOCK.user),                               // GET /api/me
+  getSummary:       ()=> apiGet('/portfolio/summary', MOCK),                      // GET /api/portfolio/summary
+  getPerformance:   ()=> apiGet('/portfolio/performance', MOCK.performance),      // GET /api/portfolio/performance
+  getActive:        ()=> apiGet('/plans/active', MOCK.active),                    // GET /api/plans/active
+  getTransactions:  ()=> apiGet('/transactions', MOCK.transactions),             // GET /api/transactions
+  getNotifications: ()=> apiGet('/notifications', MOCK.notifications),           // GET /api/notifications
+  getReferral:      ()=> apiGet('/referrals/me', MOCK_REFERRAL),                  // GET /api/referrals/me
+  login:            (creds)=> apiPost('/auth/login', creds, { ok:true }),         // POST /api/auth/login
+  register:         (data)=> apiPost('/auth/register', data, { ok:true }),        // POST /api/auth/register
+  logout:           ()=> apiPost('/auth/logout', {}, { ok:true }),                // POST /api/auth/logout
+  subscribePlan:    (plan)=> apiPost('/plans/subscribe', { plan: (plan && plan.name) ? plan.name : plan }, { ok:true, plan:plan }), // POST /api/plans/subscribe
+  deposit:          (amount, payer)=> apiPost('/wallet/deposit', Object.assign({ amount: amount }, payer||{}), { ok:true, amount:amount }), // POST /api/wallet/deposit
+  withdraw:         (payload)=> apiPost('/wallet/withdraw', payload, { ok:true, payload:payload }), // POST /api/wallet/withdraw
+  updateProfile:    (data)=> apiPost('/me/update', data, Object.assign({ ok:true, user:data }, {})),  // POST /api/me/update
+  changePassword:   (data)=> apiPost('/me/password', data, { ok:true }),                             // POST /api/me/password
+  // ---- Admin endpoints (require an admin session; see server.js) ----
+  adminStats:        ()=> apiGet('/admin/stats', ADMIN_DEMO.stats),
+  adminUsers:        ()=> apiGet('/admin/users', ADMIN_DEMO.users),
+  adminTransactions: ()=> apiGet('/admin/transactions', ADMIN_DEMO.transactions),
+  adminSubscriptions:()=> apiGet('/admin/subscriptions', ADMIN_DEMO.subscriptions),
+  adminLogs:         ()=> apiGet('/admin/logs', ADMIN_DEMO.logs),
+  adminReferrals:    ()=> apiGet('/admin/referrals', ADMIN_DEMO.referrals),
+  adminAdjust:       (userId, amount, note)=> apiPost('/admin/wallet/adjust', { userId:userId, amount:amount, note:note }, { ok:true }),
+  adminTxStatus:     (id, status)=> apiPost('/admin/transaction/status', { id:id, status:status }, { ok:true }),
+  adminCancelPlan:   (id)=> apiPost('/admin/plan/cancel', { id:id }, { ok:true }),
+  adminSetRole:      (userId, role)=> apiPost('/admin/user/role', { userId:userId, role:role }, { ok:true })
+};
+
+/* =========================================================================
+   APP CONTEXT (auth + theme + selected deposit amount) + HASH ROUTER
+========================================================================= */
+const AppCtx = createContext(null);
+const useApp = ()=> useContext(AppCtx);
+function AppProvider({ children }){
+  const [authed,setAuthed] = useState(false);
+  const [authReady,setAuthReady] = useState(false);          // true once the session probe resolves
+  const [currentUser,setCurrentUser] = useState(null);        // the signed-in user's profile
+  const [dark,setDark]     = useState(false);
+  const [depositAmount,setDepositAmount] = useState(DEPOSIT_AMOUNTS[0]);
+  const [depositName,setDepositName] = useState('');
+  const [depositMomo,setDepositMomo] = useState('');
+  const [toast,setToast] = useState(null);                    // { id, msg, tone }
+  function showToast(msg, tone){ setToast({ id:Date.now(), msg:msg, tone:tone||'success' }); }
+  useEffect(function(){ document.documentElement.classList.toggle('dark', dark); }, [dark]);
+  useEffect(function(){ if(!toast) return; const t = setTimeout(function(){ setToast(null); }, 3200); return function(){ clearTimeout(t); }; }, [toast]);
+
+  // Decide the initial auth state from the backend session (or demo when offline).
+  useEffect(function(){
+    let alive = true;
+    probeSession().then(function(res){
+      if(!alive) return;
+      if(res.state === 'authed'){ setAuthed(true); setCurrentUser(res.user); }
+      setAuthReady(true);
+    });
+    return function(){ alive = false; };
+  }, []);
+
+  // When any request hits a 401, sign out and bounce to the login screen.
+  useEffect(function(){
+    unauthorizedHandler = function(){
+      setAuthed(false); setCurrentUser(null);
+      if((window.location.hash.replace('#','') || '/') !== '/login') go('/login');
+    };
+    return function(){ unauthorizedHandler = null; };
+  }, []);
+
+  const ctx = { authed:authed, setAuthed:setAuthed, authReady:authReady, currentUser:currentUser, setCurrentUser:setCurrentUser, dark:dark, setDark:setDark, depositAmount:depositAmount, setDepositAmount:setDepositAmount, depositName:depositName, setDepositName:setDepositName, depositMomo:depositMomo, setDepositMomo:setDepositMomo, showToast:showToast };
+  return (
+    <AppCtx.Provider value={ctx}>
+      {children}
+      {toast && (
+        <div className="fixed bottom-5 inset-x-0 z-[100] flex justify-center px-4 pointer-events-none">
+          <div className={cx('pointer-events-auto flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-pop animate-pop text-white', toast.tone==='error'?'bg-loss':toast.tone==='info'?'bg-navy-700':'bg-profit')}>
+            <Icon d={toast.tone==='error'?'M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z':'M5 13l4 4L19 7'} className="w-4 h-4"/>
+            <span>{toast.msg}</span>
+          </div>
+        </div>
+      )}
+    </AppCtx.Provider>
+  );
+}
+function useHashRoute(){
+  const [route,setRoute] = useState(window.location.hash.replace('#','') || '/');
+  useEffect(function(){
+    const on = ()=>{ setRoute(window.location.hash.replace('#','') || '/'); window.scrollTo(0,0); };
+    window.addEventListener('hashchange', on);
+    return ()=> window.removeEventListener('hashchange', on);
+  }, []);
+  return route;
+}
+const go = (path)=>{ window.location.hash = path; };
+
+/* Copy text to the clipboard with a graceful fallback for older browsers. */
+function copyText(text){
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(String(text)); return true; } }catch(e){}
+  try{ const el=document.createElement('textarea'); el.value=String(text); el.style.position='fixed'; el.style.opacity='0'; document.body.appendChild(el); el.focus(); el.select(); document.execCommand('copy'); document.body.removeChild(el); return true; }catch(e){ return false; }
+}
+/* Build a shareable referral link from a code (works on any host). */
+function buildRefLink(code){ return location.origin + location.pathname + '#/register?ref=' + encodeURIComponent(code||''); }
+/* Read a ?ref=CODE value out of the hash, e.g. #/register?ref=ABC. */
+function getRefParam(){ const h = window.location.hash || ''; const i = h.indexOf('?'); if(i<0) return ''; try{ return new URLSearchParams(h.slice(i+1)).get('ref') || ''; }catch(e){ return ''; } }
+/* Basic email-shape check used for client-side form validation. */
+function isEmail(v){ return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(v||'').trim()); }
+
+/* =========================================================================
+   CUSTOM LOGO
+========================================================================= */
+function Logo({ size=30, withText=true, light=false }){
+  return (
+    <span className="inline-flex items-center gap-2 select-none">
+      <svg width={size} height={size} viewBox="0 0 48 48" fill="none" aria-label="Swift Investments logo">
+        <rect width="48" height="48" rx="12" fill="#0A2540"/>
+        <path d="M13 30 L23 16 L29 24 L35 14" stroke="#16A34A" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M30 14 H35 V19" stroke="#16A34A" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="23" cy="16" r="2.4" fill="#1E6FE8"/>
+      </svg>
+      {withText && (
+        <span className={cx('font-extrabold tracking-tight text-[1.05rem] leading-none', light?'text-white':'text-navy-700 dark:text-white')}>
+          Swift<span className="text-brand">.</span>
+        </span>
+      )}
+    </span>
+  );
+}
+
+/* =========================================================================
+   REUSABLE UI
+========================================================================= */
+function Button({ children, variant='primary', size='md', className='', ...p }){
+  const base='inline-flex items-center justify-center gap-2 font-semibold rounded-xl transition-all duration-200 active:scale-[.98] focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:opacity-50';
+  const sizes={ sm:'text-sm px-3 py-1.5', md:'px-4 py-2.5', lg:'text-base px-6 py-3.5 w-full' };
+  const variants={
+    primary:'bg-brand text-white hover:bg-brand-700 shadow-sm',
+    success:'bg-profit text-white hover:brightness-95 shadow-sm',
+    danger:'bg-loss text-white hover:brightness-95 shadow-sm',
+    gold:'bg-gold text-navy-900 hover:brightness-95 shadow-sm',
+    ghost:'text-navy-700 dark:text-slate-200 hover:bg-navy-50 dark:hover:bg-white/10',
+    outline:'border border-slate-300 dark:border-white/15 hover:bg-navy-50 dark:hover:bg-white/10'
+  };
+  return <button className={cx(base,sizes[size],variants[variant],className)} {...p}>{children}</button>;
+}
+function Card({ children, className='' }){
+  return <div className={cx('bg-white dark:bg-navy-800 rounded-2xl shadow-card border border-slate-100 dark:border-white/10', className)}>{children}</div>;
+}
+function Badge({ children, tone='slate' }){
+  const tones={
+    slate:'bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-200',
+    profit:'bg-profit-soft text-profit dark:bg-profit/15',
+    loss:'bg-loss-soft text-loss dark:bg-loss/15',
+    brand:'bg-blue-50 text-brand dark:bg-brand/15',
+    gold:'bg-gold-soft text-amber-600 dark:bg-gold/15 dark:text-amber-300',
+    amber:'bg-amber-50 text-amber-600 dark:bg-amber-400/15 dark:text-amber-300'
+  };
+  return <span className={cx('inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full', tones[tone])}>{children}</span>;
+}
+function Icon({ d, className='w-5 h-5' }){
+  return <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>;
+}
+function Modal({ open, onClose, title, children }){
+  if(!open) return null;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-navy-900/50 backdrop-blur-sm" onClick={onClose}/>
+      <div className="relative bg-white dark:bg-navy-800 w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-pop p-6 animate-pop border border-slate-100 dark:border-white/10">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold">{title}</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-loss text-2xl leading-none">&times;</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+function Field({ label, type='text', placeholder, value, onChange, hint }){
+  return (
+    <label className="block">
+      <span className="text-sm font-medium text-navy-700 dark:text-slate-200">{label}</span>
+      <input type={type} placeholder={placeholder} value={value} onChange={onChange}
+        className="mt-1 w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-navy-900 px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand"/>
+      {hint && <span className="text-xs text-slate-400 mt-1 block">{hint}</span>}
+    </label>
+  );
+}
+function TableSkeleton({ rows=5 }){
+  return <div className="space-y-2">{Array.from({length:rows}).map(function(_,i){ return <div key={i} className="h-12 skeleton rounded-xl"/>; })}</div>;
+}
+function ErrorState({ onRetry }){
+  return (
+    <Card className="p-8 text-center">
+      <div className="text-4xl mb-2">⚠️</div>
+      <h3 className="font-bold text-lg">Something went wrong</h3>
+      <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">We couldn't load this data. Please try again.</p>
+      <Button variant="outline" className="mt-4 w-auto px-6" onClick={onRetry}>Retry</Button>
+    </Card>
+  );
+}
+function Toggle({ on, onClick }){
+  const [s,setS]=useState(on);
+  return <button onClick={(e)=>{ setS(!s); if(onClick) onClick(e); }} className={cx('w-11 h-6 rounded-full transition-colors relative shrink-0', s?'bg-profit':'bg-slate-300 dark:bg-white/20')}><span className={cx('absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all', s?'left-[22px]':'left-0.5')}/></button>;
+}
+
+/* Chart.js wrapper */
+function ChartCanvas({ type, data, options, height=200 }){
+  const ref = useRef(null); const inst = useRef(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(function(){
+    if(!ref.current) return;
+    if(!ChartJS || !data){ setFailed(true); return; }
+    try {
+      inst.current = new ChartJS(ref.current, { type:type, data:data, options:options });
+      setFailed(false);
+    } catch(e){ console.warn('[chart] render failed:', e); setFailed(true); }
+    return ()=>{ if(inst.current){ try{ inst.current.destroy(); }catch(e){} inst.current = null; } };
+  }, [JSON.stringify(data), type]);
+  const box = { height: height + 'px' };
+  if(failed) return <div style={box} className="grid place-items-center text-xs text-slate-400 border border-dashed border-slate-200 dark:border-white/10 rounded-xl">Chart unavailable</div>;
+  return <div style={box}><canvas ref={ref}/></div>;
+}
+function lineData(perf){
+  return { labels:perf.labels, datasets:[{ label:'Balance', data:perf.values, borderColor:'#1E6FE8',
+    borderWidth:3, tension:.4, fill:true, pointRadius:0, pointHoverRadius:5,
+    backgroundColor:function(c){ const g=c.chart.ctx.createLinearGradient(0,0,0,200); g.addColorStop(0,'rgba(30,111,232,.25)'); g.addColorStop(1,'rgba(30,111,232,0)'); return g; } }] };
+}
+function axisOpts(dark){
+  return { responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:false }, tooltip:{ backgroundColor:'#0A2540' } },
+    scales:{ x:{ grid:{ display:false }, ticks:{ color: dark?'#94a3b8':'#64748b' } },
+      y:{ grid:{ color: dark?'rgba(255,255,255,.06)':'rgba(10,37,64,.06)' }, ticks:{ color: dark?'#94a3b8':'#64748b' } } } };
+}
+
+/* =========================================================================
+   PLAN CARD + GRID (shown on landing + dashboard + plans page)
+========================================================================= */
+function PlanCard({ plan }){
+  const ring = plan.accent==='gold' ? 'ring-gold/40' : plan.accent==='navy' ? 'ring-navy-200 dark:ring-white/10' : 'ring-brand/30';
+  const head = plan.accent==='gold' ? 'from-amber-400 to-gold' : plan.accent==='navy' ? 'from-navy-700 to-navy-600' : 'from-brand to-brand-700';
+  return (
+    <div className={cx('rounded-2xl bg-white dark:bg-navy-800 shadow-card border border-slate-100 dark:border-white/10 ring-1 overflow-hidden flex flex-col animate-fadeUp', ring)}>
+      <div className={cx('bg-gradient-to-br text-white px-4 pt-3 pb-4', head)}>
+        <div className="flex items-center justify-between">
+          <span className="font-extrabold">{plan.name}</span>
+          {plan.tag && <span className="text-[10px] font-bold uppercase tracking-wide bg-white/20 px-2 py-0.5 rounded-full">{plan.tag}</span>}
+        </div>
+        <p className="text-2xl font-extrabold mt-1">{cedi0(plan.price)}</p>
+      </div>
+      <div className="p-4 flex-1 flex flex-col">
+        <div className="space-y-1.5 text-sm flex-1">
+          <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Daily income</span><span className="font-bold text-profit">{cedi0(plan.daily)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Valid period</span><span className="font-semibold">{plan.days} days</span></div>
+          <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Total return</span><span className="font-bold text-navy-700 dark:text-white">{cedi0(plan.daily*plan.days)}</span></div>
+        </div>
+        <Button size="sm" variant={plan.accent==='gold'?'gold':'primary'} className="mt-3 w-full" onClick={()=>go('/plans')}>Invest now</Button>
+      </div>
+    </div>
+  );
+}
+function PlansGrid({ plans=PLANS }){
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {plans.map(function(p){ return <PlanCard key={p.name} plan={p}/>; })}
+    </div>
+  );
+}
+
+/* =========================================================================
+   APP SHELL — mobile top bar + bottom tab navigation
+========================================================================= */
+const REFERRAL_ICON = 'M16 11a3 3 0 10-6 0 3 3 0 006 0zM2 21a6 6 0 0112 0M17 21a5 5 0 00-3-4.6M18 7l1.6 1.6L23 5';
+/* Mobile bottom bar — 5 tabs (Deposit is the center action). Withdraw lives on
+   the Dashboard hero + the Account page, keeping the bar uncluttered. */
+const BOTTOM_NAV = [
+  { path:'/dashboard', label:'Home',      icon:'M3 12l9-9 9 9M5 10v10h14V10' },
+  { path:'/plans',     label:'Plans',     icon:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z' },
+  { path:'/deposit',   label:'Deposit',   icon:'M12 5v14M5 12h14' },
+  { path:'/referrals', label:'Referrals', icon:REFERRAL_ICON },
+  { path:'/account',   label:'Account',   icon:'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0' }
+];
+/* Desktop sidebar nav — room for every destination, including Withdraw. */
+const SIDE_NAV = [
+  { path:'/dashboard', label:'Home',      icon:'M3 12l9-9 9 9M5 10v10h14V10' },
+  { path:'/plans',     label:'Plans',     icon:'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z' },
+  { path:'/deposit',   label:'Deposit',   icon:'M12 5v14M5 12h14' },
+  { path:'/withdraw',  label:'Withdraw',  icon:'M12 19V5M5 12l7-7 7 7' },
+  { path:'/referrals', label:'Referrals', icon:REFERRAL_ICON },
+  { path:'/account',   label:'Account',   icon:'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0' }
+];
+/* Device detection — desktop vs mobile (user-agent + viewport, re-checks on resize). */
+function detectDevice(){
+  const ua = (navigator.userAgent || '');
+  const uaMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|BlackBerry|webOS|Mobile/i.test(ua);
+  const narrow = window.innerWidth < 1024;
+  return (uaMobile || narrow) ? 'mobile' : 'desktop';
+}
+function useDevice(){
+  const [device,setDevice] = useState(detectDevice());
+  useEffect(function(){
+    const on = function(){ setDevice(detectDevice()); };
+    window.addEventListener('resize', on);
+    return function(){ window.removeEventListener('resize', on); };
+  }, []);
+  return device;
+}
+/* Shared notifications list (used by both desktop and mobile shells). */
+function NotifList({ notifs, onMarkAll }){
+  const list = notifs || [];
+  return (
+    <>
+      <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between">
+        <span className="font-bold text-sm">Notifications</span>
+        {list.length>0 && <button onClick={onMarkAll} className="text-xs font-semibold text-brand hover:underline">Mark all read</button>}
+      </div>
+      <div className="max-h-80 overflow-auto">
+        {list.length===0 ? <p className="px-4 py-6 text-sm text-slate-400 text-center">You're all caught up.</p> : list.map(function(n){
+          return (
+            <div key={n.id} className={cx('px-4 py-3 flex gap-3 border-b border-slate-50 dark:border-white/5', n.unread&&'bg-blue-50/50 dark:bg-white/5')}>
+              <span className={cx('mt-1 w-2 h-2 rounded-full shrink-0', n.tone==='profit'?'bg-profit':n.tone==='loss'?'bg-loss':'bg-brand')}/>
+              <div><p className="text-sm font-semibold">{n.title}</p><p className="text-xs text-slate-500 dark:text-slate-400">{n.body}</p><p className="text-[11px] text-slate-400 mt-0.5">{n.time} ago</p></div>
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+const ICON_SUN  = "M12 3v2M12 19v2M5 12H3M21 12h-2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4M12 8a4 4 0 100 8 4 4 0 000-8z";
+const ICON_MOON = "M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z";
+const ICON_BELL = "M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0";
+
+function AppShell({ route, children, title }){
+  const { dark, setDark } = useApp();
+  const device = useDevice();
+  const [notifOpen,setNotifOpen] = useState(false);
+  const [notifs,setNotifs] = useState([]);
+  useEffect(function(){ api.getNotifications().then(setNotifs); }, []);
+  const unread = notifs.filter(function(n){ return n.unread; }).length;
+  const markAllRead = function(){ setNotifs(function(list){ return (list||[]).map(function(n){ return Object.assign({}, n, { unread:false }); }); }); };
+
+  /* ===================== DESKTOP VIEW (sidebar + wide content) ===================== */
+  if(device === 'desktop'){
+    return (
+      <div className="min-h-screen flex bg-slate-100 dark:bg-navy-900">
+        <aside className="w-64 shrink-0 bg-white dark:bg-navy-800 border-r border-slate-100 dark:border-white/10 flex flex-col sticky top-0 h-screen">
+          <div className="h-16 flex items-center px-5 border-b border-slate-100 dark:border-white/10"><Logo/></div>
+          <nav className="flex-1 p-3 space-y-1">
+            {SIDE_NAV.map(function(it){
+              const active = route.startsWith(it.path);
+              return (
+                <a key={it.path} href={'#'+it.path} className={cx('flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors', active?'bg-brand text-white shadow-sm':'text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5')}>
+                  <Icon d={it.icon} className="w-5 h-5"/> {it.label}
+                </a>
+              );
+            })}
+          </nav>
+          <div className="p-3 border-t border-slate-100 dark:border-white/10">
+            <button onClick={()=>setDark(!dark)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-500 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5">
+              <Icon d={dark?ICON_SUN:ICON_MOON} className="w-5 h-5"/> {dark?'Light mode':'Dark mode'}
+            </button>
+          </div>
+        </aside>
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="h-16 sticky top-0 z-30 bg-white/85 dark:bg-navy-800/85 backdrop-blur border-b border-slate-100 dark:border-white/10 flex items-center gap-3 px-6">
+            <h1 className="text-lg font-bold text-navy-700 dark:text-white">{title || 'Swift'}</h1>
+            <div className="ml-auto relative">
+              <button onClick={()=>setNotifOpen(function(o){ return !o; })} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 relative">
+                <Icon d={ICON_BELL}/>
+                {unread>0 && <span className="absolute top-1 right-1 w-4 h-4 text-[10px] font-bold bg-loss text-white rounded-full flex items-center justify-center">{unread}</span>}
+              </button>
+              {notifOpen && <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-navy-800 rounded-2xl shadow-pop border border-slate-100 dark:border-white/10 overflow-hidden animate-pop z-40"><NotifList notifs={notifs} onMarkAll={markAllRead}/></div>}
+            </div>
+          </header>
+          <main className="flex-1 p-6"><div className="max-w-5xl mx-auto">{children}</div></main>
+        </div>
+      </div>
+    );
+  }
+
+  /* ===================== MOBILE VIEW (top bar + bottom nav) ===================== */
+  return (
+    <div className="min-h-screen max-w-md mx-auto bg-slate-100 dark:bg-navy-900 flex flex-col relative shadow-xl">
+      <header className="h-14 sticky top-0 z-30 bg-white/85 dark:bg-navy-800/85 backdrop-blur border-b border-slate-100 dark:border-white/10 flex items-center gap-3 px-4">
+        <Logo withText={false}/>
+        <div className="font-bold text-navy-700 dark:text-white">{title || 'Swift'}</div>
+        <div className="ml-auto flex items-center gap-1">
+          <button onClick={()=>setDark(!dark)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10" title="Theme">
+            {dark ? <Icon d={ICON_SUN}/> : <Icon d={ICON_MOON}/>}
+          </button>
+          <div className="relative">
+            <button onClick={()=>setNotifOpen(function(o){ return !o; })} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10 relative">
+              <Icon d={ICON_BELL}/>
+              {unread>0 && <span className="absolute top-1 right-1 w-4 h-4 text-[10px] font-bold bg-loss text-white rounded-full flex items-center justify-center">{unread}</span>}
+            </button>
+            {notifOpen && (
+              <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-navy-800 rounded-2xl shadow-pop border border-slate-100 dark:border-white/10 overflow-hidden animate-pop z-40">
+                <NotifList notifs={notifs} onMarkAll={markAllRead}/>
+              </div>
+            )}
+          </div>
+        </div>
+      </header>
+      <main className="flex-1 p-4 pb-24">{children}</main>
+      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md bg-white/90 dark:bg-navy-800/90 backdrop-blur border-t border-slate-100 dark:border-white/10 grid grid-cols-5 safe-bottom z-30">
+        {BOTTOM_NAV.map(function(it){
+          const active = route.startsWith(it.path);
+          const center = it.path==='/deposit';
+          if(center){
+            return (
+              <a key={it.path} href={'#'+it.path} className="flex flex-col items-center justify-end pb-1.5 -mt-4">
+                <span className="w-12 h-12 rounded-full bg-brand text-white grid place-items-center shadow-pop"><Icon d={it.icon} className="w-6 h-6"/></span>
+                <span className={cx('text-[10px] mt-0.5 font-semibold', active?'text-brand':'text-slate-500')}>{it.label}</span>
+              </a>
+            );
+          }
+          return (
+            <a key={it.path} href={'#'+it.path} className={cx('flex flex-col items-center gap-0.5 py-2.5', active?'text-brand':'text-slate-400')}>
+              <Icon d={it.icon} className="w-5 h-5"/>
+              <span className="text-[10px] font-semibold">{it.label}</span>
+            </a>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}
+
+/* =========================================================================
+   PAGE COMPONENTS
+========================================================================= */
+
+/* ---------- Landing (public, mobile-first marketing) ---------- */
+function Landing(){
+  const { dark, setDark } = useApp();
+  const features = [
+    ['📊','Live dashboard','Track balance, income and growth in real time.'],
+    ['🛡️','Secure','Bank-grade encryption keeps your money safe.'],
+    ['⚡','Daily income','Earn every day from your active VIP plans.'],
+    ['📱','Mobile-first','A smooth app experience on any phone.']
+  ];
+  return (
+    <div className="max-w-md mx-auto min-h-screen bg-white dark:bg-navy-900 shadow-xl">
+      <header className="h-14 flex items-center px-4 sticky top-0 bg-white/85 dark:bg-navy-900/85 backdrop-blur z-20 border-b border-slate-100 dark:border-white/10">
+        <Logo/>
+        <div className="ml-auto flex items-center gap-2">
+          <button onClick={()=>setDark(!dark)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/10">{dark?'☀️':'🌙'}</button>
+          <Button variant="ghost" size="sm" onClick={()=>go('/login')}>Log in</Button>
+        </div>
+      </header>
+      <section className="px-5 pt-8 pb-6 text-center">
+        <Badge tone="brand">Trusted by 120,000+ investors</Badge>
+        <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-navy-700 dark:text-white leading-tight">Invest smart.<br/>Earn <span className="text-profit">daily.</span></h1>
+        <p className="mt-3 text-slate-600 dark:text-slate-300">Swift Investments gives you a clean, trustworthy way to grow your money with daily income plans.</p>
+        <div className="mt-6 space-y-3">
+          <Button size="lg" onClick={()=>go('/register')}>Create free account</Button>
+          <Button size="lg" variant="outline" onClick={()=>go('/dashboard')}>View live demo</Button>
+        </div>
+      </section>
+      <section className="px-5 py-6 bg-slate-50 dark:bg-navy-800/40">
+        <h2 className="text-lg font-extrabold text-navy-700 dark:text-white">Investment plans</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Pick a VIP plan and start earning daily.</p>
+        <PlansGrid/>
+      </section>
+      <section className="px-5 py-8 grid grid-cols-2 gap-3">
+        {features.map(function(f){
+          return (
+            <Card key={f[1]} className="p-4">
+              <div className="text-2xl">{f[0]}</div>
+              <h3 className="mt-2 font-bold text-navy-700 dark:text-white text-sm">{f[1]}</h3>
+              <p className="mt-1 text-slate-500 dark:text-slate-400 text-xs">{f[2]}</p>
+            </Card>
+          );
+        })}
+      </section>
+      <section className="px-5 pb-10">
+        <Card className="p-6 text-center bg-gradient-to-br from-navy-700 to-brand text-white border-0">
+          <h2 className="text-xl font-extrabold">Start today</h2>
+          <p className="mt-1 text-slate-200 text-sm">Join thousands growing their wealth with Swift.</p>
+          <Button size="lg" variant="success" className="mt-4" onClick={()=>go('/register')}>Get started</Button>
+        </Card>
+        <p className="text-center text-xs text-slate-400 mt-6">© 2026 Swift Investments. Demo only.</p>
+      </section>
+    </div>
+  );
+}
+
+/* ---------- Auth ---------- */
+function AuthLayout({ title, subtitle, children, foot }){
+  return (
+    <div className="max-w-md mx-auto min-h-screen bg-white dark:bg-navy-900 shadow-xl flex flex-col">
+      <div className="bg-navy-700 text-white px-6 pt-12 pb-8 rounded-b-3xl">
+        <Logo light/>
+        <h1 className="text-2xl font-extrabold mt-6">{title}</h1>
+        <p className="text-slate-300 text-sm mt-1">{subtitle}</p>
+      </div>
+      <div className="p-6 flex-1">
+        <div className="space-y-4 animate-fadeUp">{children}</div>
+        <p className="mt-6 text-sm text-center text-slate-500 dark:text-slate-400">{foot}</p>
+      </div>
+    </div>
+  );
+}
+function Login(){
+  const { setAuthed, setCurrentUser } = useApp();
+  const [loading,setLoading]=useState(false);
+  const [email,setEmail]=useState(''); const [password,setPassword]=useState(''); const [error,setError]=useState('');
+  const submit=(e)=>{ e.preventDefault(); setError('');
+    if(!email.trim() || !password){ setError('Please enter your email and password.'); return; }
+    setLoading(true);
+    api.login({ email:email.trim(), password:password }).then(function(res){ setAuthed(true); if(res && res.user) setCurrentUser(res.user); go('/dashboard'); }).catch(function(){ setLoading(false); setError('Username or password is invalid. Please try again.'); }); };
+  const forgot=(e)=>{ e.preventDefault(); alert('Passwords cannot be recovered. For your security they are stored only as a one-way encrypted hash, so no one (not even an administrator) can ever see or retrieve your existing password. An admin can reset it for you, or you can create a new account. Demo login: demo@swift.io / demo1234.'); };
+  return (
+    <AuthLayout title="Welcome back" subtitle="Log in to access your portfolio." foot={<>New to Swift? <a href="#/register" className="text-brand font-semibold">Create an account</a></>}>
+      <form onSubmit={submit} className="space-y-4">
+        {error && <div className="rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-sm font-medium px-3.5 py-2.5 border border-red-200 dark:border-red-500/20">{error}</div>}
+        <Field label="Phone or email" placeholder="Enter your phone or email" value={email} onChange={(e)=>setEmail(e.target.value)}/>
+        <Field label="Password" type="password" placeholder="Enter your password" value={password} onChange={(e)=>setPassword(e.target.value)}/>
+        <div className="flex items-center justify-between text-sm">
+          <label className="flex items-center gap-2 text-slate-500"><input type="checkbox" className="rounded"/> Remember me</label>
+          <a href="#" onClick={forgot} className="text-brand font-medium">Forgot password?</a>
+        </div>
+        <p className="text-xs text-slate-400 dark:text-slate-500 -mt-1">Passwords cannot be recovered — they are encrypted with a one-way hash. An admin can only reset yours, never view it.</p>
+        <Button size="lg" disabled={loading}>{loading?'Signing in…':'Log in'}</Button>
+      </form>
+    </AuthLayout>
+  );
+}
+function Register(){
+  const { setAuthed, setCurrentUser } = useApp();
+  const [loading,setLoading]=useState(false);
+  const [name,setName]=useState(''); const [email,setEmail]=useState(''); const [phone,setPhone]=useState(''); const [password,setPassword]=useState(''); const [agree,setAgree]=useState(false);
+  const [ref,setRef]=useState(getRefParam()); const [error,setError]=useState('');
+  const submit=(e)=>{ e.preventDefault(); setError('');
+    if(!name.trim()){ setError('Please enter your full name.'); return; }
+    if(!isEmail(email)){ setError('Please enter a valid email address.'); return; }
+    if(password.length < 6){ setError('Your password must be at least 6 characters.'); return; }
+    if(!agree){ setError('Please accept the Terms of Service to continue.'); return; }
+    setLoading(true);
+    api.register({ name:name.trim(), email:email.trim(), phone:phone.trim(), password:password, ref:ref.trim() }).then(function(res){ setAuthed(true); if(res && res.user) setCurrentUser(res.user); go('/dashboard'); }).catch(function(err){ setLoading(false); setError((err && err.message) ? err.message : 'We could not create your account. Please try again.'); }); };
+  return (
+    <AuthLayout title="Create account" subtitle="Start investing in under 2 minutes." foot={<>Already have an account? <a href="#/login" className="text-brand font-semibold">Log in</a></>}>
+      <form onSubmit={submit} className="space-y-4">
+        {error && <div className="rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-sm font-medium px-3.5 py-2.5 border border-red-200 dark:border-red-500/20">{error}</div>}
+        <Field label="Full name" placeholder="Enter your full name" value={name} onChange={(e)=>setName(e.target.value)}/>
+        <Field label="Email" type="email" placeholder="Enter your email address" value={email} onChange={(e)=>setEmail(e.target.value)}/>
+        <Field label="Phone number" placeholder="Enter your phone number" value={phone} onChange={(e)=>setPhone(e.target.value)}/>
+        <Field label="Password" type="password" placeholder="Create a password (min 6 chars)" value={password} onChange={(e)=>setPassword(e.target.value)}/>
+        <Field label="Referral code (optional)" placeholder="Enter referral code (optional)" value={ref} onChange={(e)=>setRef(e.target.value)} hint={ref?'A friend invited you — you both get rewarded when you fund your account.':''}/>
+        <label className="flex items-start gap-2 text-xs text-slate-500"><input type="checkbox" checked={agree} onChange={(e)=>setAgree(e.target.checked)} className="mt-0.5 rounded"/> I agree to the Terms of Service and Privacy Policy.</label>
+        <Button size="lg" disabled={loading}>{loading?'Creating…':'Create account'}</Button>
+      </form>
+    </AuthLayout>
+  );
+}
+
+/* ---------- Dashboard (Home) ---------- */
+function Dashboard(){
+  const { dark } = useApp();
+  const [sum,setSum]=useState(null); const [active,setActive]=useState(null); const [txns,setTxns]=useState(null); const [err,setErr]=useState(false);
+  function load(){ setErr(false); setSum(null); setActive(null); setTxns(null);
+    Promise.all([api.getSummary(), api.getActive(), api.getTransactions()])
+      .then(function(r){ setSum(r[0]); setActive(r[1]); setTxns(r[2].slice(0,4)); })
+      .catch(function(){ setErr(true); }); }
+  useEffect(load, []);
+  if(err) return <ErrorState onRetry={load}/>;
+  return (
+    <div className="space-y-5">
+      {/* Balance hero */}
+      <div className="rounded-3xl bg-gradient-to-br from-navy-700 to-brand text-white p-5 shadow-pop animate-fadeUp">
+        <p className="text-sm text-slate-200">Account balance</p>
+        {!sum ? <div className="h-9 w-40 skeleton rounded mt-1 bg-white/20"/> : <p className="text-3xl font-extrabold mt-1">{cedi(sum.balance)}</p>}
+        <div className="flex gap-4 mt-3 text-sm">
+          <div><span className="text-slate-300">Today </span><span className="font-bold text-white">{sum?('+'+cedi0(sum.todayPL)):'…'}</span></div>
+          <div><span className="text-slate-300">Total P/L </span><span className="font-bold text-white">{sum?pct(sum.totalPLPct):'…'}</span></div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          <button onClick={()=>go('/deposit')} className="bg-white/15 hover:bg-white/25 rounded-xl py-2.5 text-sm font-semibold flex items-center justify-center gap-2"><Icon d="M12 5v14M5 12h14" className="w-4 h-4"/> Deposit</button>
+          <button onClick={()=>go('/withdraw')} className="bg-white/15 hover:bg-white/25 rounded-xl py-2.5 text-sm font-semibold flex items-center justify-center gap-2"><Icon d="M12 19V5M5 12l7-7 7 7" className="w-4 h-4"/> Withdraw</button>
+        </div>
+      </div>
+      {/* mini stats */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="p-4"><p className="text-xs text-slate-500">Available</p><p className="text-lg font-extrabold text-navy-700 dark:text-white">{sum?cedi0(sum.available):'…'}</p></Card>
+        <Card className="p-4"><p className="text-xs text-slate-500">Invested</p><p className="text-lg font-extrabold text-navy-700 dark:text-white">{sum?cedi0(sum.invested):'…'}</p></Card>
+      </div>
+      {/* performance */}
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-2"><h3 className="font-bold text-navy-700 dark:text-white">7-day growth</h3><Badge tone="profit">▲ this week</Badge></div>
+        <ChartCanvas type="line" height={170} data={lineData(MOCK.performance)} options={axisOpts(dark)}/>
+      </Card>
+      {/* active plans */}
+      <div>
+        <div className="flex items-center justify-between mb-2"><h3 className="font-bold text-navy-700 dark:text-white">Active investments</h3></div>
+        {!active ? <TableSkeleton rows={2}/> : (
+          <div className="space-y-2">
+            {active.map(function(a){
+              const barStyle = { width: Math.round(a.dayOf/a.days*100) + '%' };
+              return (
+                <Card key={a.name} className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-brand/10 text-brand grid place-items-center font-extrabold text-xs">{a.name.replace('VIP','V')}</div>
+                  <div className="flex-1"><p className="font-bold text-sm">{a.name}</p><p className="text-xs text-slate-400">Day {a.dayOf} of {a.days}</p>
+                    <div className="h-1.5 bg-slate-100 dark:bg-white/10 rounded-full mt-1 overflow-hidden"><div className="h-full bg-profit rounded-full" style={barStyle}/></div>
+                  </div>
+                  <div className="text-right"><p className="text-xs text-slate-400">Daily</p><p className="font-bold text-profit">{cedi0(a.daily)}</p></div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {/* plans grid */}
+      <div>
+        <div className="flex items-center justify-between mb-2"><h3 className="font-bold text-navy-700 dark:text-white">Investment plans</h3><a href="#/plans" className="text-sm text-brand font-semibold">See all →</a></div>
+        <PlansGrid plans={PLANS.slice(0,4)}/>
+      </div>
+      {/* recent txns */}
+      <div>
+        <div className="flex items-center justify-between mb-2"><h3 className="font-bold text-navy-700 dark:text-white">Recent transactions</h3><a href="#/transactions" className="text-sm text-brand font-semibold">View all →</a></div>
+        {!txns ? <TableSkeleton/> : <TxnList rows={txns}/>}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Plans page ---------- */
+function Plans(){
+  const [modal,setModal]=useState(null);
+  const [done,setDone]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [sum,setSum]=useState(null);
+  function loadSum(){ api.getSummary().then(setSum).catch(function(){ setSum(MOCK); }); }
+  useEffect(loadSum, []);
+  const avail = sum ? (sum.available||0) : 0;
+  const subscribe=()=>{
+    // Rule: you can only activate a plan when your available balance covers its full price.
+    if(modal.price > avail){ window.alert('⚠️ Insufficient balance. You need ' + cedi0(modal.price) + ' available to activate ' + modal.name + '. Your available balance is ' + cedi0(avail) + '.'); return; }
+    var ok = window.confirm('Subscribe to ' + modal.name + '?\n\nPrice: ' + cedi0(modal.price) + '\nDaily income: ' + cedi0(modal.daily) + '\nDuration: ' + modal.days + ' days\nTotal return: ' + cedi0(modal.daily*modal.days));
+    if(!ok) return;
+    setBusy(true);
+    api.subscribePlan(modal).then(function(r){ setBusy(false); setDone(true); if(r && r.summary) setSum(r.summary); else loadSum(); window.alert('✅ Success! You are now subscribed to ' + modal.name + '. ' + cedi0(modal.price) + ' was deducted from your balance and your first daily income of ' + cedi0(modal.daily) + ' has been credited today.'); }).catch(function(err){ setBusy(false); setModal(null); window.alert('⚠️ ' + (err && err.message ? err.message : 'Could not subscribe to this plan.')); });
+  };
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-xl font-extrabold text-navy-700 dark:text-white">Investment plans</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Choose a VIP plan and earn daily income for {PLANS[0].days} days.</p>
+      </div>
+      <div className="rounded-2xl bg-navy-50 dark:bg-white/5 p-4 flex items-center justify-between">
+        <span className="text-sm text-slate-500 dark:text-slate-400">Available to invest</span>
+        <span className="text-xl font-extrabold text-navy-700 dark:text-white">{sum?cedi0(avail):'…'}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {PLANS.map(function(p){
+          return (
+            <div key={p.name}>
+              <PlanCardInteractive plan={p} avail={avail} onInvest={()=>{ setDone(false); setModal(p); }}/>
+            </div>
+          );
+        })}
+      </div>
+      <Card className="p-4 text-sm text-slate-500 dark:text-slate-400">
+        💡 Daily income is credited automatically each day for the validity period. Make sure your wallet is funded before investing.
+      </Card>
+      <Modal open={!!modal} onClose={()=>setModal(null)} title={done?'Subscribed!':('Confirm ' + (modal?modal.name:''))}>
+        {modal && !done && (
+          <div>
+            <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between"><span className="text-slate-500">Plan</span><span className="font-bold">{modal.name}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Price</span><span className="font-bold">{cedi0(modal.price)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Daily income</span><span className="font-bold text-profit">{cedi0(modal.daily)}</span></div>
+              <div className="flex justify-between"><span className="text-slate-500">Total return</span><span className="font-bold">{cedi0(modal.daily*modal.days)}</span></div>
+              <div className="flex justify-between pt-1.5 border-t border-slate-100 dark:border-white/10"><span className="text-slate-500">Your available</span><span className={cx('font-bold', modal.price>avail?'text-loss':'text-profit')}>{cedi0(avail)}</span></div>
+            </div>
+            {modal.price>avail && <p className="text-xs text-loss mt-2">You need {cedi0(modal.price-avail)} more to activate this plan.</p>}
+            <div className="flex gap-2 mt-5"><Button variant="outline" className="flex-1" onClick={()=>setModal(null)}>Cancel</Button><Button className="flex-1" disabled={busy||modal.price>avail} onClick={subscribe}>{busy?'Processing…':(modal.price>avail?'Insufficient funds':'Confirm')}</Button></div>
+          </div>
+        )}
+        {done && (
+          <div className="text-center">
+            <div className="text-4xl">✅</div>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">You subscribed to <strong>{modal&&modal.name}</strong>. Your first daily income has been credited today, and you’ll earn {modal&&cedi0(modal.daily)} every day for {modal&&modal.days} days.</p>
+            <Button className="mt-4" onClick={()=>{ setModal(null); go('/dashboard'); }}>Go to dashboard</Button>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+function PlanCardInteractive({ plan, avail, onInvest }){
+  const afford = (avail||0) >= plan.price;
+  const head = plan.accent==='gold' ? 'from-amber-400 to-gold' : plan.accent==='navy' ? 'from-navy-700 to-navy-600' : 'from-brand to-brand-700';
+  return (
+    <div className="rounded-2xl bg-white dark:bg-navy-800 shadow-card border border-slate-100 dark:border-white/10 overflow-hidden flex flex-col animate-fadeUp">
+      <div className={cx('bg-gradient-to-br text-white px-4 pt-3 pb-4', head)}>
+        <div className="flex items-center justify-between"><span className="font-extrabold">{plan.name}</span>{plan.tag && <span className="text-[10px] font-bold uppercase bg-white/20 px-2 py-0.5 rounded-full">{plan.tag}</span>}</div>
+        <p className="text-2xl font-extrabold mt-1">{cedi0(plan.price)}</p>
+      </div>
+      <div className="p-4 flex-1 flex flex-col">
+        <div className="space-y-1.5 text-sm flex-1">
+          <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Daily</span><span className="font-bold text-profit">{cedi0(plan.daily)}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Period</span><span className="font-semibold">{plan.days} days</span></div>
+          <div className="flex justify-between"><span className="text-slate-500 dark:text-slate-400">Total</span><span className="font-bold text-navy-700 dark:text-white">{cedi0(plan.daily*plan.days)}</span></div>
+        </div>
+        <Button size="sm" variant={plan.accent==='gold'?'gold':'primary'} className="mt-3 w-full" onClick={onInvest}>{afford?'Invest now':('Need '+cedi0(plan.price-(avail||0))+' more')}</Button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Deposit (amount selection) ---------- */
+function Deposit(){
+  const { depositAmount, setDepositAmount, depositName, setDepositName, depositMomo, setDepositMomo } = useApp();
+  const [custom,setCustom]=useState('');
+  const choose=(v)=>{ setDepositAmount(v); setCustom(''); };
+  const amount = custom ? Number(custom) : depositAmount;
+  // useful JS prompt: enter a custom amount with a native prompt + validation
+  const promptCustom=()=>{
+    var v = window.prompt('Enter a custom deposit amount (₵):', custom || '');
+    if(v===null) return;
+    var n = Number(v);
+    if(!n || n<=0){ window.alert('⚠️ Please enter a valid amount greater than 0.'); return; }
+    setCustom(String(n)); setDepositAmount(0);
+  };
+  const proceed=()=>{
+    // Require the payer's full name, MoMo number and amount before continuing.
+    if(!depositName.trim()){ window.alert('⚠️ Please enter your full name (as registered on your Mobile Money account).'); return; }
+    if(!/^0\d{9}$/.test(depositMomo.replace(/\s+/g,''))){ window.alert('⚠️ Please enter a valid 10-digit Mobile Money number (e.g. 0541234567).'); return; }
+    if(!amount || amount<=0){ window.alert('⚠️ Please select or enter an amount first.'); return; }
+    var ok = window.confirm('Proceed to pay ' + cedi0(amount) + ' via Telecel Cash as ' + depositName.trim() + ' (' + depositMomo.replace(/\s+/g,'') + ')?');
+    if(!ok) return;
+    setDepositName(depositName.trim()); setDepositMomo(depositMomo.replace(/\s+/g,'')); setDepositAmount(amount); go('/payment');
+  };
+  return (
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-xl font-extrabold text-navy-700 dark:text-white">Deposit funds</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Enter your details and select an amount to add to your wallet.</p>
+      </div>
+      <Card className="p-4 space-y-3">
+        <div>
+          <h4 className="font-bold text-sm text-navy-700 dark:text-white">Your payment details</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Enter the exact name and Mobile Money number you will pay from, so we can match your payment.</p>
+        </div>
+        <Field label="Full name" placeholder="Enter your full name" value={depositName} onChange={(e)=>setDepositName(e.target.value)}/>
+        <Field label="Mobile Money number" type="tel" placeholder="Enter your MoMo number" value={depositMomo} onChange={(e)=>setDepositMomo(e.target.value)}/>
+      </Card>
+      <div className="grid grid-cols-3 gap-3">
+        {DEPOSIT_AMOUNTS.map(function(v){
+          const active = !custom && depositAmount===v;
+          return (
+            <button key={v} onClick={()=>choose(v)} className={cx('rounded-2xl py-5 font-extrabold text-lg border-2 transition-all', active?'border-brand bg-brand/10 text-brand':'border-slate-200 dark:border-white/10 bg-white dark:bg-navy-800 text-navy-700 dark:text-white hover:border-brand/50')}>{cedi0(v)}</button>
+          );
+        })}
+      </div>
+      <Card className="p-4">
+        <label className="text-sm font-medium text-navy-700 dark:text-slate-200">Or enter a custom amount</label>
+        <div className="mt-1 relative">
+          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₵</span>
+          <input value={custom} onChange={(e)=>setCustom(e.target.value)} type="number" placeholder="0.00" className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-navy-900 pl-8 pr-3 py-3 text-sm focus:ring-2 focus:ring-brand/40 focus:border-brand outline-none"/>
+        </div>
+        <button onClick={promptCustom} className="mt-2 text-sm font-semibold text-brand inline-flex items-center gap-1">✏️ Enter amount with keypad</button>
+      </Card>
+      <div className="rounded-2xl bg-navy-50 dark:bg-white/5 p-4 flex items-center justify-between">
+        <span className="text-sm text-slate-500 dark:text-slate-400">You will pay</span>
+        <span className="text-2xl font-extrabold text-navy-700 dark:text-white">{cedi0(amount||0)}</span>
+      </div>
+      <Button size="lg" disabled={!amount || !depositName.trim() || !depositMomo.trim()} onClick={proceed}>Pay Now!</Button>
+      <Card className="p-4">
+        <h4 className="font-bold text-sm text-navy-700 dark:text-white mb-2">How deposits work</h4>
+        <ol className="text-sm text-slate-500 dark:text-slate-400 space-y-1.5 list-decimal pl-4">
+          <li>Enter your full name and Mobile Money number, then choose or enter the amount.</li>
+          <li>Tap <strong>Pay Now!</strong> to see the payment instructions.</li>
+          <li>Send the exact amount to the Telecel Cash number shown.</li>
+          <li>Your wallet is credited once an admin confirms your payment.</li>
+        </ol>
+      </Card>
+    </div>
+  );
+}
+
+/* ---------- Payment instructions (with 5-min timer) ---------- */
+function Payment(){
+  const { depositAmount, depositName, depositMomo } = useApp();
+  const [left,setLeft]=useState(300); // 5 minutes
+  const [copied,setCopied]=useState(false);
+  const [paid,setPaid]=useState(false);
+  const [busy,setBusy]=useState(false);
+  useEffect(function(){
+    const t = setInterval(function(){ setLeft(function(s){ return s>0 ? s-1 : 0; }); }, 1000);
+    return ()=> clearInterval(t);
+  }, []);
+  const mm = String(Math.floor(left/60)).padStart(2,'0');
+  const ss = String(left%60).padStart(2,'0');
+  const expired = left<=0;
+  const copyNum=()=>{ try{ navigator.clipboard.writeText(PAYEE.number); }catch(e){} setCopied(true); setTimeout(function(){ setCopied(false); }, 1500); };
+  // Submitting a deposit creates a PENDING transaction; an admin must confirm it before it reflects.
+  const iPaid=()=>{ setBusy(true); api.deposit(depositAmount, { name: depositName, momo: depositMomo }).then(function(){ setBusy(false); setPaid(true); }).catch(function(err){ setBusy(false); window.alert('⚠️ ' + (err && err.message ? err.message : 'Could not submit your deposit. Please try again.')); }); };
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <button onClick={()=>go('/deposit')} className="flex items-center gap-1 text-sm text-slate-500"><Icon d="M15 18l-6-6 6-6" className="w-4 h-4"/> Back</button>
+        <span className={cx('font-mono font-extrabold text-sm px-3 py-1.5 rounded-full', expired?'bg-loss-soft text-loss':'bg-navy-700 text-white')}>⏱ {mm}:{ss}</span>
+      </div>
+      <div className="text-center">
+        <h2 className="text-lg font-extrabold text-navy-700 dark:text-white">Complete your payment</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Send the exact amount below to the receiver.</p>
+      </div>
+      <Card className="p-5 text-center">
+        <p className="text-xs uppercase tracking-wide text-slate-400">Amount to pay</p>
+        <p className="text-4xl font-extrabold text-navy-700 dark:text-white mt-1">{cedi0(depositAmount||0)}</p>
+      </Card>
+      <Card className="p-5 text-center">
+        <p className="text-xs uppercase tracking-wide text-slate-400">Receiver number</p>
+        <p className="text-3xl font-extrabold tracking-wider text-navy-700 dark:text-white mt-1">{PAYEE.number}</p>
+        <button onClick={copyNum} className="mt-2 text-sm font-semibold text-brand inline-flex items-center gap-1"><Icon d="M8 8h10v12H8zM6 16H4V4h12v2" className="w-4 h-4"/> {copied?'Copied!':'Copy number'}</button>
+        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-white/10">
+          <p className="text-xs uppercase tracking-wide text-slate-400">Receiver name</p>
+          <p className="text-xl font-extrabold text-navy-700 dark:text-white mt-0.5">{PAYEE.name}</p>
+          <div className="mt-2"><Badge tone="gold">{PAYEE.note}</Badge></div>
+        </div>
+      </Card>
+      <Card className="p-4">
+        <h4 className="font-bold text-sm text-navy-700 dark:text-white mb-2">Payment instructions</h4>
+        <ol className="text-sm text-slate-500 dark:text-slate-400 space-y-1.5 list-decimal pl-4">
+          <li>Dial your Telecel Cash menu or open the app.</li>
+          <li>Choose <strong>Send Money</strong> and enter <strong>{PAYEE.number}</strong>.</li>
+          <li>Enter the exact amount <strong>{cedi0(depositAmount||0)}</strong>.</li>
+          <li>Confirm the receiver name is <strong>{PAYEE.name}</strong>, then approve with your PIN.</li>
+          <li>Tap <strong>I have paid</strong> below once done.</li>
+        </ol>
+        <p className="text-xs text-loss mt-3">⚠️ Complete payment before the timer runs out, or restart the deposit.</p>
+      </Card>
+      <Button size="lg" variant="success" disabled={expired||busy} onClick={iPaid}>{busy?'Submitting…':(expired?'Time expired — restart':'I have paid')}</Button>
+      <Modal open={paid} onClose={()=>setPaid(false)} title="Payment submitted">
+        <div className="text-center">
+          <div className="text-4xl">🕒</div>
+          <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">Your deposit of <strong>{cedi0(depositAmount||0)}</strong> is <strong>pending admin confirmation</strong>. It will reflect on your dashboard once an admin approves it.</p>
+          <Button className="mt-4" onClick={()=>{ setPaid(false); go('/dashboard'); }}>Done</Button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+/* ---------- Withdraw ---------- */
+function Withdraw(){
+  const MIN_WD = 100;       // minimum withdrawal in cedis
+  const REQ_REFS = 2;       // successful referrals required to unlock withdrawals
+  const [sum,setSum]=useState(null);
+  const [refData,setRefData]=useState(null);
+  const [acct,setAcct]=useState('');
+  const [num,setNum]=useState('');
+  const [amt,setAmt]=useState('');
+  const [modal,setModal]=useState(false);
+  const [busy,setBusy]=useState(false);
+  useEffect(function(){
+    api.getSummary().then(setSum).catch(function(){ setSum(MOCK); });
+    api.getReferral().then(setRefData).catch(function(){ setRefData(MOCK_REFERRAL); });
+  }, []);
+  const available = sum ? (sum.available||0) : 0;
+  // A 'successful' referral is one who has funded their account (status active).
+  const successful = refData ? (refData.referrals||[]).filter(function(r){ return r.status==='active'; }).length : 0;
+  const eligible = successful >= REQ_REFS;
+  const submit=(e)=>{
+    e.preventDefault();
+    var n = Number(amt);
+    if(!n || n<=0){ window.alert('⚠️ Enter a valid withdrawal amount.'); return; }
+    if(n < MIN_WD){ window.alert('⚠️ The minimum withdrawal is ' + cedi0(MIN_WD) + '.'); return; }
+    if(!eligible){ window.alert('🔒 You need at least ' + REQ_REFS + ' successful referrals to withdraw. You currently have ' + successful + '. Invite friends from the Referrals tab.'); return; }
+    if(n > available){ window.alert('⚠️ Amount exceeds your available balance of ' + cedi(available) + '.'); return; }
+    var ok = window.confirm('Withdraw ' + cedi(n) + ' to ' + (acct||'your account') + ' (' + (num||'—') + ')?');
+    if(!ok) return;
+    setModal(true);
+  };
+  const confirmWithdraw=()=>{
+    setBusy(true);
+    api.withdraw({ amount:Number(amt), account:acct, number:num }).then(function(){
+      setBusy(false); setModal(false);
+      window.alert('✅ Withdrawal request submitted. An admin will review and release your funds shortly.');
+      go('/dashboard');
+    }).catch(function(err){
+      setBusy(false); setModal(false);
+      window.alert('⚠️ ' + (err && err.message ? err.message : 'Withdrawal failed. Please try again.'));
+    });
+  };
+  return (
+    <div className="space-y-4">
+      {/* balance on top */}
+      <div className="rounded-3xl bg-gradient-to-br from-navy-700 to-brand text-white p-5 shadow-pop">
+        <p className="text-sm text-slate-200">Available balance</p>
+        <p className="text-3xl font-extrabold mt-1">{sum?cedi(available):'…'}</p>
+        <p className="text-xs text-slate-300 mt-1">Withdrawable now</p>
+      </div>
+      <h2 className="text-xl font-extrabold text-navy-700 dark:text-white">Withdraw funds</h2>
+      {/* eligibility banner */}
+      <Card className={cx('p-4 flex items-center gap-3 border-l-4', eligible?'border-profit':'border-gold')}>
+        <span className={cx('w-9 h-9 rounded-xl grid place-items-center shrink-0', eligible?'bg-profit-soft text-profit':'bg-gold-soft text-amber-600')}><Icon d={eligible?'M20 6L9 17l-5-5':'M12 9v4m0 4h.01M10.3 3.9l-8 14A2 2 0 004 21h16a2 2 0 001.7-3l-8-14a2 2 0 00-3.4 0z'} className="w-5 h-5"/></span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-navy-700 dark:text-white">{eligible?'You are eligible to withdraw':'Withdrawals locked'}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{successful}/{REQ_REFS} successful referrals · minimum {cedi0(MIN_WD)}</p>
+        </div>
+        {!eligible && <Button size="sm" variant="outline" onClick={()=>go('/referrals')}>Invite</Button>}
+      </Card>
+      <Card className="p-5">
+        <form onSubmit={submit} className="space-y-4">
+          <Field label="Withdrawal account" placeholder="Account name (e.g. Emma Highest)" value={acct} onChange={(e)=>setAcct(e.target.value)}/>
+          <Field label="Withdrawal number" type="tel" placeholder="e.g. 0541234567" value={num} onChange={(e)=>setNum(e.target.value)}/>
+          <label className="block">
+            <span className="text-sm font-medium text-navy-700 dark:text-slate-200">Amount</span>
+            <div className="mt-1 relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₵</span>
+              <input value={amt} onChange={(e)=>setAmt(e.target.value)} type="number" placeholder="Minimum 100.00" className="w-full rounded-xl border border-slate-300 dark:border-white/15 bg-white dark:bg-navy-900 pl-8 pr-3 py-3 text-sm focus:ring-2 focus:ring-brand/40 focus:border-brand outline-none"/>
+            </div>
+          </label>
+          <Button size="lg" variant="danger" disabled={!acct||!num||!amt||!eligible}>{eligible?'Request withdrawal':('Locked — need '+REQ_REFS+' referrals')}</Button>
+        </form>
+      </Card>
+      <Card className="p-4">
+        <h4 className="font-bold text-sm text-navy-700 dark:text-white mb-2">Withdrawal instructions</h4>
+        <ol className="text-sm text-slate-500 dark:text-slate-400 space-y-1.5 list-decimal pl-4">
+          <li>The minimum withdrawal is <strong>{cedi0(MIN_WD)}</strong>.</li>
+          <li>You must have at least <strong>{REQ_REFS} successful referrals</strong> (a referral counts once they fund their account).</li>
+          <li>Enter the account name and mobile money number to receive funds.</li>
+          <li>Withdrawals are reviewed and released by an admin within 24 hours.</li>
+          <li>Double-check your number — funds sent to a wrong number cannot be recovered.</li>
+        </ol>
+      </Card>
+      <Modal open={modal} onClose={()=>setModal(false)} title="Confirm withdrawal">
+        <div className="space-y-1.5 text-sm">
+          <div className="flex justify-between"><span className="text-slate-500">Account</span><span className="font-bold">{acct||'—'}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">Number</span><span className="font-bold">{num||'—'}</span></div>
+          <div className="flex justify-between"><span className="text-slate-500">Amount</span><span className="font-bold">{amt?cedi(Number(amt)):'₵0.00'}</span></div>
+        </div>
+        <p className="text-xs text-slate-400 mt-3">Your request will be held for admin review before funds are released.</p>
+        <div className="flex gap-2 mt-5"><Button variant="outline" className="flex-1" onClick={()=>setModal(false)}>Cancel</Button><Button variant="danger" className="flex-1" disabled={busy} onClick={confirmWithdraw}>{busy?'Submitting…':'Confirm'}</Button></div>
+      </Modal>
+    </div>
+  );
+}
+
+/* ---------- Transactions ---------- */
+function TxnList({ rows }){
+  const tone = (t)=> (t==='Deposit'||t==='Income')?'profit':t==='Withdrawal'?'loss':'brand';
+  const stone = (s)=> s==='Completed'?'profit':s==='Pending'?'amber':'loss';
+  const sign = (t)=> (t==='Withdrawal'||t==='Investment')?'-':'+';
+  return (
+    <div className="space-y-2">
+      {rows.map(function(t){
+        return (
+          <Card key={t.id} className="p-3.5 flex items-center gap-3">
+            <span className={cx('w-9 h-9 rounded-xl grid place-items-center', tone(t)==='profit'?'bg-profit-soft text-profit':tone(t)==='loss'?'bg-loss-soft text-loss':'bg-blue-50 text-brand')}>
+              <Icon d={t.type==='Withdrawal'?'M12 19V5M5 12l7-7 7 7':t.type==='Deposit'||t.type==='Income'?'M12 5v14M19 12l-7 7-7-7':'M4 7h16M4 12h16M4 17h10'} className="w-4 h-4"/>
+            </span>
+            <div className="flex-1"><p className="font-semibold text-sm">{t.type}</p><p className="text-xs text-slate-400">{t.date} · {t.id}</p></div>
+            <div className="text-right"><p className={cx('font-bold text-sm', tone(t)==='loss'?'text-loss':'text-navy-700 dark:text-white')}>{sign(t)}{cedi0(t.amount)}</p><Badge tone={stone(t.status)}>{t.status}</Badge></div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+function Transactions(){
+  const [rows,setRows]=useState(null); const [filter,setFilter]=useState('All');
+  useEffect(function(){ api.getTransactions().then(setRows); }, []);
+  const types=['All','Deposit','Withdrawal','Income','Investment'];
+  const shown = rows ? (filter==='All'?rows:rows.filter(function(r){ return r.type===filter; })) : null;
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-extrabold text-navy-700 dark:text-white">Transactions</h2>
+      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1">
+        {types.map(function(t){
+          return <button key={t} onClick={()=>setFilter(t)} className={cx('shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full transition-colors', filter===t?'bg-brand text-white':'bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300')}>{t}</button>;
+        })}
+      </div>
+      {!shown ? <TableSkeleton rows={6}/> : (shown.length ? <TxnList rows={shown}/> : <p className="text-center text-slate-400 py-10 text-sm">No {filter} transactions.</p>)}
+    </div>
+  );
+}
+
+/* ---------- Account (profile + settings + links) ---------- */
+function Account(){
+  const { dark, setDark, setAuthed, currentUser, setCurrentUser, showToast } = useApp();
+  const [me,setMe] = useState(currentUser);
+  const [role,setRole] = useState(currentUser && currentUser.role);
+  useEffect(function(){ api.getProfile().then(function(u){ if(u){ setMe(u); setRole(u.role); if(u.email) setCurrentUser(u); } }).catch(function(){}); }, []);
+  // editable profile + security forms
+  const [editing,setEditing] = useState(false);
+  const [fName,setFName] = useState(''); const [fPhone,setFPhone] = useState(''); const [savingP,setSavingP] = useState(false); const [pErr,setPErr] = useState('');
+  const [secOpen,setSecOpen] = useState(false);
+  const [curPw,setCurPw] = useState(''); const [newPw,setNewPw] = useState(''); const [newPw2,setNewPw2] = useState(''); const [savingPw,setSavingPw] = useState(false); const [pwErr,setPwErr] = useState('');
+  function startEdit(){ setFName((me&&me.name)||''); setFPhone((me&&me.phone)||''); setPErr(''); setEditing(true); }
+  function saveProfile(){
+    if(!fName.trim()){ setPErr('Please enter your full name.'); return; }
+    setSavingP(true); setPErr('');
+    api.updateProfile({ name:fName.trim(), phone:fPhone.trim() }).then(function(res){
+      const u = (res && res.user) ? res.user : Object.assign({}, me, { name:fName.trim(), phone:fPhone.trim() });
+      setMe(u); if(u && u.email) setCurrentUser(u); setEditing(false); setSavingP(false); showToast('Profile updated');
+    }).catch(function(err){ setSavingP(false); setPErr((err&&err.message)||'Could not update your profile.'); });
+  }
+  function savePassword(){
+    if(newPw.length < 6){ setPwErr('Your new password must be at least 6 characters.'); return; }
+    if(newPw !== newPw2){ setPwErr('The new passwords do not match.'); return; }
+    setSavingPw(true); setPwErr('');
+    api.changePassword({ currentPassword:curPw, newPassword:newPw }).then(function(){
+      setSavingPw(false); setSecOpen(false); setCurPw(''); setNewPw(''); setNewPw2(''); showToast('Password changed');
+    }).catch(function(err){ setSavingPw(false); setPwErr((err&&err.message)||'Could not change your password.'); });
+  }
+  const dispName = (me && me.name) ? me.name : '';
+  const dispContact = (me && (me.phone || me.email)) ? (me.phone || me.email) : '';
+  const dispTier = (me && me.tier) ? me.tier : '';
+  const initials = dispName ? dispName.trim().split(/\s+/).map(function(s){ return s.charAt(0); }).slice(0,2).join('').toUpperCase() : '';
+  const links = [
+    ['Invite & earn 20%','M16 11a3 3 0 10-6 0 3 3 0 006 0zM2 21a6 6 0 0112 0M17 21a5 5 0 00-3-4.6M18 7l1.6 1.6L23 5','/referrals'],
+    ['Transactions','M4 7h16M4 12h16M4 17h10','/transactions'],
+    ['Investment plans','M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z','/plans'],
+    ['Deposit funds','M12 5v14M5 12h14','/deposit'],
+    ['Withdraw funds','M12 19V5M5 12l7-7 7 7','/withdraw']
+  ];
+  return (
+    <div className="space-y-4">
+      <Card className="p-5 flex items-center gap-4">
+        <div className="w-16 h-16 rounded-full bg-brand text-white grid place-items-center text-xl font-bold">{initials || (me && me.avatar) || '·'}</div>
+        <div className="flex-1 min-w-0"><h3 className="font-bold text-lg text-navy-700 dark:text-white truncate">{dispName || 'Your account'}</h3><p className="text-sm text-slate-400 truncate">{dispContact}</p><div className="mt-1">{dispTier && <Badge tone="brand">{dispTier} member</Badge>}</div></div>
+        <Button size="sm" variant="outline" onClick={startEdit}>Edit</Button>
+      </Card>
+      {editing && (
+        <Card className="p-4 space-y-3">
+          <h4 className="font-bold text-navy-700 dark:text-white text-sm">Personal information</h4>
+          {pErr && <div className="rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-medium px-3 py-2">{pErr}</div>}
+          <Field label="Full name" placeholder="Enter your full name" value={fName} onChange={(e)=>setFName(e.target.value)}/>
+          <Field label="Phone number" type="tel" placeholder="Enter your phone number" value={fPhone} onChange={(e)=>setFPhone(e.target.value)}/>
+          <div className="flex gap-2 pt-1">
+            <Button className="flex-1" disabled={savingP} onClick={saveProfile}>{savingP?'Saving…':'Save changes'}</Button>
+            <Button variant="ghost" className="flex-1" onClick={()=>setEditing(false)}>Cancel</Button>
+          </div>
+        </Card>
+      )}
+      <Card className="p-2">
+        {links.map(function(l){
+          return (
+            <a key={l[0]} href={'#'+l[2]} className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5">
+              <span className="w-9 h-9 rounded-xl bg-navy-50 dark:bg-white/10 grid place-items-center text-navy-700 dark:text-white"><Icon d={l[1]} className="w-4 h-4"/></span>
+              <span className="flex-1 font-semibold text-sm">{l[0]}</span>
+              <Icon d="M9 6l6 6-6 6" className="w-4 h-4 text-slate-400"/>
+            </a>
+          );
+        })}
+      </Card>
+      {(role==='admin' || DEMO_MODE) && (
+        <a href="#/admin" className="block">
+          <Card className="p-4 flex items-center gap-3">
+            <span className="w-9 h-9 rounded-xl bg-brand text-white grid place-items-center"><Icon d="M12 3l8 4v5c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V7z" className="w-4 h-4"/></span>
+            <div className="flex-1"><p className="font-semibold text-sm text-navy-700 dark:text-white">Admin console</p><p className="text-xs text-slate-400">Manage users, approvals, plans &amp; logs</p></div>
+            <Icon d="M9 6l6 6-6 6" className="w-4 h-4 text-slate-400"/>
+          </Card>
+        </a>
+      )}
+      <Card className="p-4">
+        <div className="flex items-center justify-between">
+          <div><h4 className="font-bold text-navy-700 dark:text-white text-sm">Security</h4><p className="text-xs text-slate-400">Change your account password</p></div>
+          <Button size="sm" variant="outline" onClick={()=>{ setSecOpen(!secOpen); setPwErr(''); }}>{secOpen?'Close':'Change password'}</Button>
+        </div>
+        {secOpen && (
+          <div className="space-y-3 mt-3">
+            {pwErr && <div className="rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 text-xs font-medium px-3 py-2">{pwErr}</div>}
+            <Field label="Current password" type="password" placeholder="Enter your current password" value={curPw} onChange={(e)=>setCurPw(e.target.value)}/>
+            <Field label="New password" type="password" placeholder="At least 6 characters" value={newPw} onChange={(e)=>setNewPw(e.target.value)}/>
+            <Field label="Confirm new password" type="password" placeholder="Re-enter your new password" value={newPw2} onChange={(e)=>setNewPw2(e.target.value)}/>
+            <Button disabled={savingPw} onClick={savePassword}>{savingPw?'Updating…':'Update password'}</Button>
+          </div>
+        )}
+      </Card>
+      <Card className="p-4">
+        <h4 className="font-bold text-navy-700 dark:text-white mb-3 text-sm">Preferences</h4>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between"><div><p className="font-semibold text-sm">Dark mode</p><p className="text-xs text-slate-400">Switch theme</p></div><Toggle on={dark} onClick={()=>setDark(!dark)}/></div>
+          <div className="flex items-center justify-between"><div><p className="font-semibold text-sm">Two-factor auth</p><p className="text-xs text-slate-400">Extra security</p></div><Toggle on={true}/></div>
+          <div className="flex items-center justify-between"><div><p className="font-semibold text-sm">Email alerts</p><p className="text-xs text-slate-400">Trade confirmations</p></div><Toggle on={true}/></div>
+        </div>
+      </Card>
+      <Button variant="outline" onClick={()=>{ if(window.confirm('Sign out of Swift Investments?')){ api.logout().finally(function(){ setAuthed(false); setCurrentUser(null); go('/login'); }); } }}>Sign out</Button>
+    </div>
+  );
+}
+
+/* =========================================================================
+   ADMIN CONSOLE  — mobile-first back-office, fully separate from the member app.
+   • Card-based responsive lists (no horizontal scrolling on phones).
+   • A slide-over USER DETAIL drawer that links each user to their
+     transactions, plans and activity — every detail is connected.
+   • Tappable users everywhere + KPIs that jump to filtered sections.
+   • Full audit / activity log.
+   Route: #/admin   (role 'admin' only; renders with demo data when offline).
+   >>> ADD AN ADMIN SECTION HERE: add to ADMIN_NAV + a {tab==='id'} block <<<
+========================================================================= */
+const ADMIN_NAV = [
+  ['overview','Overview',     'M3 12l9-9 9 9M5 10v10h14V10'],
+  ['users',   'Users',        'M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0'],
+  ['txns',    'Transactions', 'M4 7h16M4 12h16M4 17h10'],
+  ['plans',   'Plans',        'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z'],
+  ['referrals','Referrals',   'M16 11a3 3 0 10-6 0 3 3 0 006 0zM2 21a6 6 0 0112 0M17 21a5 5 0 00-3-4.6M18 7l1.6 1.6L23 5'],
+  ['logs',    'Activity log', 'M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z']
+];
+
+/* small helpers */
+function initials(name){ return (name || '?').slice(0,2).toUpperCase(); }
+function fmtDateTime(s){
+  if(!s) return '—';
+  var iso = String(s).trim().replace(' ','T');
+  if(iso.indexOf('Z')<0 && iso.indexOf('+')<0) iso += 'Z';
+  var d = new Date(iso);
+  return isNaN(d.getTime()) ? String(s) : d.toLocaleString();
+}
+/* One label/value row used in the admin Registration-details card. Optionally copyable. */
+function DRow({ label, value, mono, copy }){
+  const [done,setDone] = useState(false);
+  function doCopy(){ copyText(String(value==null?'':value)); setDone(true); setTimeout(function(){ setDone(false); }, 1200); }
+  return (
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <span className="text-slate-400 shrink-0">{label}</span>
+      <span className="font-medium text-navy-700 dark:text-white text-right flex items-center gap-1.5 min-w-0">
+        <span className={cx('truncate', mono && 'font-mono text-xs')}>{value==null||value===''?'—':value}</span>
+        {copy && value ? <button onClick={doCopy} title="Copy" className="text-brand hover:text-brand-700 shrink-0">{done ? <Icon d="M5 13l4 4L19 7" className="w-3.5 h-3.5"/> : <Icon d="M9 9h10v12H9zM5 15H3V3h12v2" className="w-3.5 h-3.5"/>}</button> : null}
+      </span>
+    </div>
+  );
+}
+function StatusPill({ status }){
+  const tone = status==='Completed' ? 'profit' : status==='Pending' ? 'amber' : status==='Failed' ? 'loss' : 'slate';
+  return <Badge tone={tone}>{status}</Badge>;
+}
+function RoleBadge({ role }){ return role==='admin' ? <Badge tone="brand">admin</Badge> : <Badge>user</Badge>; }
+
+/* KPI tile — becomes a button when onClick is supplied (links to a section) */
+function AdKpi({ label, value, sub, icon, tone='brand', onClick }){
+  const tile = tone==='loss' ? 'bg-loss-soft text-loss'
+    : tone==='profit' ? 'bg-profit-soft text-profit'
+    : tone==='amber' ? 'bg-gold-soft text-amber-600'
+    : 'bg-blue-50 text-brand dark:bg-brand/15';
+  const inner = (
+    <Card className={cx('p-4 h-full', onClick && 'transition-transform active:scale-[0.98] hover:shadow-md')}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-slate-400">{label}</p>
+          <p className="text-2xl font-extrabold mt-1 text-navy-700 dark:text-white truncate">{value}</p>
+          {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+        </div>
+        <span className={cx('w-10 h-10 rounded-xl grid place-items-center shrink-0', tile)}><Icon d={icon} className="w-5 h-5"/></span>
+      </div>
+    </Card>
+  );
+  return onClick ? <button onClick={onClick} className="text-left w-full">{inner}</button> : inner;
+}
+
+/* ---------- responsive list cards (mobile-first) ---------- */
+function UserCard({ u, onOpen, onAdjust, onRole }){
+  return (
+    <Card className="p-3">
+      <button onClick={()=>onOpen(u)} className="w-full text-left flex items-center gap-3">
+        <span className="w-10 h-10 rounded-full bg-navy-50 dark:bg-white/10 grid place-items-center text-xs font-bold text-navy-700 dark:text-white shrink-0">{initials(u.name)}</span>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2"><p className="font-semibold text-navy-700 dark:text-white truncate">{u.name}</p><RoleBadge role={u.role}/></div>
+          <p className="text-xs text-slate-400 truncate">{u.email}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">{u.tier} · Balance {cedi0(u.balance)}</p>
+        </div>
+        <Icon d="M9 6l6 6-6 6" className="w-4 h-4 text-slate-300 shrink-0"/>
+      </button>
+      <div className="flex gap-2 mt-3">
+        <Button size="sm" variant="outline" className="flex-1" onClick={()=>onAdjust(u)}>Adjust</Button>
+        <Button size="sm" variant="ghost" className="flex-1" onClick={()=>onRole(u)}>{u.role==='admin'?'Demote':'Make admin'}</Button>
+      </div>
+    </Card>
+  );
+}
+function TxnCard({ t, onUser, onApprove, onReject }){
+  const tone = t.type==='Withdrawal' ? 'bg-loss-soft text-loss' : t.type==='Deposit' ? 'bg-blue-50 text-brand dark:bg-brand/15' : 'bg-profit-soft text-profit';
+  const tIcon = t.type==='Withdrawal' ? 'M12 5v14M5 12l7 7 7-7' : t.type==='Deposit' ? 'M12 19V5M5 12l7-7 7 7' : 'M3 3v18h18M7 14l3-3 3 3 5-5';
+  return (
+    <Card className="p-3">
+      <div className="flex items-center gap-3">
+        <span className={cx('w-9 h-9 rounded-xl grid place-items-center shrink-0', tone)}><Icon d={tIcon} className="w-4 h-4"/></span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-navy-700 dark:text-white truncate">{t.type} · <span className="font-mono text-xs text-slate-400">{t.txid}</span></p>
+          <button onClick={()=>onUser(t.user)} className="text-xs text-brand hover:underline truncate block max-w-full">{t.user}</button>
+          <p className="text-[11px] text-slate-400">{t.date}</p>
+          {t.note && <p className="text-[11px] text-slate-500 dark:text-slate-300 truncate">💳 {t.note}</p>}
+        </div>
+        <div className="text-right shrink-0">
+          <p className="font-bold text-navy-700 dark:text-white">{cedi0(t.amount)}</p>
+          <StatusPill status={t.status}/>
+        </div>
+      </div>
+      {t.status==='Pending' && (
+        <div className="flex gap-2 mt-3">
+          <Button size="sm" variant="success" className="flex-1" onClick={()=>onApprove(t)}>Approve</Button>
+          <Button size="sm" variant="danger" className="flex-1" onClick={()=>onReject(t)}>Reject</Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+function AdminSubCard({ s, onUser, onCancel }){
+  const pctNum = Math.min(100, Math.round((s.dayOf / s.days) * 100));
+  const bar = { width: pctNum + '%' };
+  return (
+    <Card className="p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-semibold text-navy-700 dark:text-white">{s.name}</p>
+          <button onClick={()=>onUser(s.user)} className="text-xs text-brand hover:underline truncate block max-w-full">{s.user}</button>
+        </div>
+        {s.status==='active' ? <Badge tone="profit">active</Badge> : <Badge>{s.status}</Badge>}
+      </div>
+      <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 mt-2"><span>Price {cedi0(s.price)}</span><span className="text-profit font-semibold">+{cedi0(s.daily)}/day</span></div>
+      <div className="mt-2">
+        <div className="flex justify-between text-[11px] text-slate-400 mb-1"><span>{s.dayOf}/{s.days} days</span><span>{pctNum}%</span></div>
+        <div className="h-1.5 rounded-full bg-slate-200 dark:bg-white/10 overflow-hidden"><div className="h-full bg-brand rounded-full" style={bar}/></div>
+      </div>
+      {s.status==='active' && <Button size="sm" variant="danger" className="w-full mt-3" onClick={()=>onCancel(s)}>Cancel plan</Button>}
+    </Card>
+  );
+}
+function LogCard({ l, onUser }){
+  return (
+    <Card className="p-3">
+      <div className="flex items-center gap-2">
+        <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-blue-50 text-brand dark:bg-brand/15">{l.action}</span>
+        <span className="text-[11px] text-slate-400 ml-auto whitespace-nowrap">{l.time}</span>
+      </div>
+      <p className="text-sm mt-1.5 text-navy-700 dark:text-slate-100">{l.detail}</p>
+      <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400">
+        {l.user ? <button onClick={()=>onUser(l.user)} className="text-brand hover:underline">{l.user}</button> : <span>system</span>}
+        {l.actor && <span>· by {l.actor}</span>}
+      </div>
+    </Card>
+  );
+}
+
+function AdminReferralCard({ r, onUser }){
+  return (
+    <Card className="p-3">
+      <div className="flex items-start justify-between gap-2">
+        <button onClick={()=>onUser(r.email)} className="min-w-0 text-left">
+          <p className="font-semibold text-navy-700 dark:text-white truncate">{r.name}</p>
+          <p className="text-xs text-slate-400 truncate">{r.email}</p>
+        </button>
+        <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-blue-50 text-brand dark:bg-brand/15 shrink-0">{r.code||'—'}</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+        <div><p className="text-lg font-extrabold text-navy-700 dark:text-white">{r.referredCount||0}</p><p className="text-[11px] text-slate-400">Referred</p></div>
+        <div><p className="text-lg font-extrabold text-profit">{cedi0(r.earned||0)}</p><p className="text-[11px] text-slate-400">Earned</p></div>
+        <div className="min-w-0">{r.referredBy ? <button onClick={()=>onUser(r.referredBy)} className="text-xs font-semibold text-brand hover:underline truncate max-w-full block">{r.referredBy}</button> : <p className="text-xs text-slate-400">—</p>}<p className="text-[11px] text-slate-400">Invited by</p></div>
+      </div>
+    </Card>
+  );
+}
+
+function Admin(){
+  const { dark, setDark } = useApp();
+  const [me,setMe]     = useState(undefined);   // undefined=loading · null=denied · object=admin
+  const [demo,setDemo] = useState(false);
+  const [tab,setTab]   = useState('overview');
+  const [q,setQ]       = useState('');
+  const [txFilter,setTxFilter] = useState('All');
+  const [sel,setSel]   = useState(null);        // selected user for the detail drawer
+  const [stats,setStats] = useState(null);
+  const [users,setUsers] = useState(null);
+  const [txns,setTxns]   = useState(null);
+  const [subs,setSubs]   = useState(null);
+  const [logs,setLogs]   = useState(null);
+  const [refs,setRefs]   = useState(null);
+  const [refreshing,setRefreshing] = useState(false);   // drives the Refresh button feedback
+
+  async function reloadAll(){
+    setRefreshing(true);
+    try {
+      const r = await Promise.all([api.adminStats(), api.adminUsers(), api.adminTransactions(), api.adminSubscriptions(), api.adminLogs(), api.adminReferrals()]);
+      setStats(r[0]); setUsers(r[1]); setTxns(r[2]); setSubs(r[3]); setLogs(r[4]); setRefs(r[5]);
+      // keep the open drawer in sync with refreshed data
+      setSel(function(prev){ return prev ? (r[1].find(function(x){ return x.id===prev.id; }) || prev) : prev; });
+    } finally {
+      setRefreshing(false);
+    }
+  }
+  useEffect(function(){
+    api.getProfile().then(function(u){
+      if(u && u.role === 'admin'){ setMe(u); reloadAll(); }
+      else if(DEMO_MODE){ setDemo(true); setMe(ADMIN_DEMO.me); reloadAll(); }
+      else setMe(null);
+    }).catch(function(){ setMe(null); });
+  }, []);
+
+  // ----- linking helpers: resolve a user from any email/name reference -----
+  function openUser(u){ setSel(u); }
+  function openByRef(ref){
+    const list = users || [];
+    const u = list.find(function(x){ return x.email===ref || x.name===ref; });
+    setSel(u || { id:'_'+ref, name:ref, email:ref, role:'user', tier:'—', balance:0, available:0, _partial:true });
+  }
+
+  // ----- action handlers (window prompts keep the demo dependency-free) -----
+  async function adjust(u){
+    const v = window.prompt('Adjust wallet for ' + u.email + '\nEnter a positive number to CREDIT or a negative number to DEBIT:');
+    if(v === null) return;
+    const amt = Number(v);
+    if(!amt){ window.alert('Please enter a non-zero number.'); return; }
+    const note = window.prompt('Optional note for this adjustment:') || '';
+    await api.adminAdjust(u.id, amt, note); reloadAll();
+  }
+  async function changeRole(u){
+    const next = u.role === 'admin' ? 'user' : 'admin';
+    if(!window.confirm('Change ' + u.email + ' role to "' + next + '"?')) return;
+    await api.adminSetRole(u.id, next); reloadAll();
+  }
+  async function txStatus(t, status){
+    if(!window.confirm(status + ' ' + t.txid + ' (' + t.type + ' ' + cedi0(t.amount) + ')?')) return;
+    await api.adminTxStatus(t.id, status); reloadAll();
+  }
+  async function cancelPlan(s){
+    if(!window.confirm('Cancel ' + s.name + ' for ' + s.user + '?')) return;
+    await api.adminCancelPlan(s.id); reloadAll();
+  }
+
+  // ----- gate states -----
+  if(me === undefined){
+    return (
+      <div className="min-h-screen grid place-items-center bg-slate-50 dark:bg-navy-900">
+        <div className="flex items-center gap-2 text-slate-400 text-sm"><span className="w-4 h-4 rounded-full border-2 border-brand border-t-transparent animate-spin"/>Loading admin console…</div>
+      </div>
+    );
+  }
+  if(me === null){
+    return (
+      <div className="min-h-screen grid place-items-center bg-slate-50 dark:bg-navy-900 p-6 text-center">
+        <Card className="p-8 max-w-sm">
+          <div className="w-12 h-12 rounded-2xl bg-loss-soft text-loss grid place-items-center mx-auto"><Icon d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zM8 11V7a4 4 0 118 0v4"/></div>
+          <h3 className="font-bold text-lg text-navy-700 dark:text-white mt-3">Admins only</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Sign in with an administrator account to open the console.</p>
+          <div className="flex gap-2 mt-4"><Button variant="outline" className="flex-1" onClick={()=>go('/dashboard')}>Back to app</Button><Button className="flex-1" onClick={()=>go('/login')}>Sign in</Button></div>
+        </Card>
+      </div>
+    );
+  }
+
+  const sectionTitle = (ADMIN_NAV.find(function(n){ return n[0]===tab; }) || ['','Overview'])[1];
+  const pending = (txns || []).filter(function(t){ return t.status==='Pending'; });
+  const pendingDeposits    = pending.filter(function(t){ return t.type==='Deposit'; });
+  const pendingWithdrawals = pending.filter(function(t){ return t.type==='Withdrawal'; });
+  const ql = q.toLowerCase();
+  const sun  = 'M12 3v2M12 19v2M5 12H3M21 12h-2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4M12 8a4 4 0 100 8 4 4 0 000-8z';
+  const moon = 'M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z';
+  const showSearch = (tab==='users' || tab==='logs' || tab==='referrals');
+
+  // drawer-linked records for the selected user
+  const selRef = sel ? sel.email : null;
+  const selTx  = (txns || []).filter(function(t){ return t.user===selRef; });
+  const selSub = (subs || []).filter(function(s){ return s.user===selRef; });
+  const selLog = (logs || []).filter(function(l){ return l.user===selRef || l.actor===selRef; });
+
+  return (
+    <div className="min-h-screen flex bg-slate-50 dark:bg-navy-900 text-navy-800 dark:text-slate-100">
+      {/* ---------- Sidebar (desktop) ---------- */}
+      <aside className="hidden md:flex md:flex-col w-60 shrink-0 bg-navy-800 text-slate-300 border-r border-white/5">
+        <div className="h-16 flex items-center gap-2 px-5 border-b border-white/5">
+          <Logo withText={false}/>
+          <div className="leading-none"><p className="text-white font-extrabold">Swift</p><p className="text-[10px] uppercase tracking-[0.2em] text-brand mt-1">Admin</p></div>
+        </div>
+        <nav className="flex-1 p-3 space-y-1">
+          {ADMIN_NAV.map(function(n){
+            const active = tab===n[0];
+            return (
+              <button key={n[0]} onClick={()=>setTab(n[0])} className={cx('w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-colors', active?'bg-brand text-white shadow-sm':'text-slate-300 hover:bg-white/5')}>
+                <Icon d={n[2]} className="w-4 h-4"/>{n[1]}
+                {n[0]==='txns' && pending.length>0 && <span className="ml-auto text-[10px] font-bold bg-loss text-white rounded-full px-1.5 py-0.5">{pending.length}</span>}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="p-3 border-t border-white/5">
+          <div className="flex items-center gap-2 px-2 py-2">
+            <span className="w-8 h-8 rounded-full bg-brand text-white grid place-items-center text-xs font-bold shrink-0">{me.avatar || 'AD'}</span>
+            <div className="min-w-0"><p className="text-white text-sm font-semibold truncate">{me.name || 'Admin'}</p><p className="text-[11px] text-slate-400 truncate">{me.email || 'admin@swift.io'}</p></div>
+          </div>
+          <a href="#/dashboard" className="mt-1 flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-slate-300 hover:bg-white/5"><Icon d="M11 17l-5-5 5-5M6 12h12" className="w-4 h-4"/>Back to member app</a>
+        </div>
+      </aside>
+
+      {/* ---------- Main column ---------- */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="sticky top-0 z-30 bg-white/90 dark:bg-navy-800/90 backdrop-blur border-b border-slate-100 dark:border-white/10">
+          <div className="h-16 flex items-center gap-3 px-4 md:px-6">
+            <span className="md:hidden"><Logo withText={false}/></span>
+            <div className="leading-none min-w-0">
+              <h1 className="font-extrabold text-navy-700 dark:text-white truncate">{sectionTitle}</h1>
+              <p className="hidden md:block text-xs text-slate-400 mt-1">Swift Investments · Administration</p>
+            </div>
+            <div className="ml-auto flex items-center gap-1.5">
+              <Button size="sm" variant="outline" disabled={refreshing} onClick={reloadAll}><Icon d="M4 12a8 8 0 0114-5.3L20 8M20 4v4h-4M20 12a8 8 0 01-14 5.3L4 16M4 20v-4h4" className={cx('w-4 h-4', refreshing && 'animate-spin')}/><span className="hidden sm:inline">{refreshing?'Refreshing…':'Refresh'}</span></Button>
+              <Button size="sm" variant="ghost" onClick={()=>setDark(!dark)}><Icon d={dark?sun:moon} className="w-4 h-4"/></Button>
+              <a href="#/dashboard" className="md:hidden text-sm font-semibold text-brand px-1">Exit</a>
+            </div>
+          </div>
+          {/* mobile section nav */}
+          <div className="md:hidden flex gap-1 px-3 pb-2 overflow-x-auto no-scrollbar">
+            {ADMIN_NAV.map(function(n){
+              return (
+                <button key={n[0]} onClick={()=>setTab(n[0])} className={cx('shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold', tab===n[0]?'bg-brand text-white':'bg-slate-100 dark:bg-white/10 text-slate-500 dark:text-slate-300')}>
+                  {n[1]}
+                  {n[0]==='txns' && pending.length>0 && <span className="text-[9px] font-bold bg-loss text-white rounded-full px-1.5">{pending.length}</span>}
+                </button>
+              );
+            })}
+          </div>
+          {/* contextual search (users / logs) */}
+          {showSearch && (
+            <div className="px-3 md:px-6 pb-2">
+              <div className="relative">
+                <Icon d="M21 21l-4.3-4.3M11 18a7 7 0 100-14 7 7 0 000 14z" className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder={tab==='users'?'Search users by name or email…':tab==='referrals'?'Search referrers by name, email or code…':'Search the activity log…'} className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-navy-900 focus:ring-2 focus:ring-brand/40 outline-none"/>
+              </div>
+            </div>
+          )}
+        </header>
+
+        {demo && (
+          <div className="bg-gold-soft text-amber-700 text-xs font-medium px-4 md:px-6 py-2 border-b border-amber-200/60">Preview mode — showing sample data. Deploy the backend and sign in as admin@swift.io to manage live records.</div>
+        )}
+
+        <main className="flex-1 p-4 md:p-6 space-y-5 pb-24">
+          {/* ===================== OVERVIEW ===================== */}
+          {tab==='overview' && (!stats ? <TableSkeleton rows={4}/> : (
+            <div className="space-y-5">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <AdKpi label="Total users"    value={stats.users}                 icon="M17 20h5v-2a4 4 0 00-3-3.9M9 20H4v-2a4 4 0 013-3.9m9-4a3 3 0 11-6 0 3 3 0 016 0z" tone="brand"  onClick={()=>setTab('users')}/>
+                <AdKpi label="Total balance"  value={cedi0(stats.totalBalance)}   icon="M3 7h18v10H3zM3 11h18M7 15h2" tone="profit"/>
+                <AdKpi label="Invested"       value={cedi0(stats.totalInvested)}  icon="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" tone="brand"  onClick={()=>setTab('plans')}/>
+                <AdKpi label="Available"      value={cedi0(stats.totalAvailable)} icon="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" tone="amber"/>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                <AdKpi label="Pending withdrawals" value={stats.pendingWithdrawals} sub="Tap to review"  icon="M12 19V5M5 12l7-7 7 7" tone="loss"  onClick={()=>{ setTab('txns'); setTxFilter('Pending'); }}/>
+                <AdKpi label="Pending deposits"    value={stats.pendingDeposits}    sub="Tap to review"  icon="M12 5v14M5 12h14" tone="amber" onClick={()=>{ setTab('txns'); setTxFilter('Pending'); }}/>
+                <AdKpi label="Active plans"        value={stats.activePlans}        sub="Currently running" icon="M3 3v18h18M7 14l3-3 3 3 5-5" tone="profit" onClick={()=>setTab('plans')}/>
+              </div>
+              <div className="grid lg:grid-cols-2 gap-4">
+                <Card className="p-0 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between"><h3 className="font-bold text-sm text-navy-700 dark:text-white">Pending approvals</h3><Button size="sm" variant="ghost" onClick={()=>{ setTab('txns'); setTxFilter('Pending'); }}>View all</Button></div>
+                  {pending.length===0 ? (
+                    <p className="px-4 py-8 text-center text-sm text-slate-400">Nothing pending right now 🎉</p>
+                  ) : (
+                    <div>
+                      {/* ----- Deposit requests (separated) ----- */}
+                      <div className="px-4 pt-3 pb-1.5 flex items-center gap-2 bg-slate-50/60 dark:bg-white/5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500"/>
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-300">Deposit requests</p>
+                        <span className="text-[10px] font-bold text-amber-600 bg-amber-100/70 dark:bg-amber-500/20 rounded-full px-1.5">{pendingDeposits.length}</span>
+                      </div>
+                      <div className="divide-y divide-slate-50 dark:divide-white/5">
+                        {pendingDeposits.slice(0,5).map(function(t){
+                          return (
+                            <div key={t.id} className="px-4 py-3 flex items-center gap-2">
+                              <button onClick={()=>openByRef(t.user)} className="flex-1 min-w-0 text-left"><p className="text-sm font-semibold truncate text-navy-700 dark:text-white">{cedi0(t.amount)}{t.note ? ' · ' + t.note : ''}</p><p className="text-xs text-brand truncate hover:underline">{t.user} · {t.date}</p></button>
+                              <Button size="sm" variant="success" onClick={()=>txStatus(t,'Approved')}>Approve</Button>
+                              <Button size="sm" variant="danger" onClick={()=>txStatus(t,'Rejected')}>Reject</Button>
+                            </div>
+                          );
+                        })}
+                        {pendingDeposits.length===0 && <p className="px-4 py-3 text-xs text-slate-400">No deposit requests pending.</p>}
+                      </div>
+                      {/* ----- Withdrawal requests (separated) ----- */}
+                      <div className="px-4 pt-3 pb-1.5 flex items-center gap-2 bg-slate-50/60 dark:bg-white/5 border-t border-slate-100 dark:border-white/10">
+                        <span className="w-1.5 h-1.5 rounded-full bg-loss"/>
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-300">Withdrawal requests</p>
+                        <span className="text-[10px] font-bold text-loss bg-red-100/70 dark:bg-red-500/20 rounded-full px-1.5">{pendingWithdrawals.length}</span>
+                      </div>
+                      <div className="divide-y divide-slate-50 dark:divide-white/5">
+                        {pendingWithdrawals.slice(0,5).map(function(t){
+                          return (
+                            <div key={t.id} className="px-4 py-3 flex items-center gap-2">
+                              <button onClick={()=>openByRef(t.user)} className="flex-1 min-w-0 text-left"><p className="text-sm font-semibold truncate text-navy-700 dark:text-white">{cedi0(t.amount)}</p><p className="text-xs text-brand truncate hover:underline">{t.user} · {t.date}</p></button>
+                              <Button size="sm" variant="success" onClick={()=>txStatus(t,'Approved')}>Approve</Button>
+                              <Button size="sm" variant="danger" onClick={()=>txStatus(t,'Rejected')}>Reject</Button>
+                            </div>
+                          );
+                        })}
+                        {pendingWithdrawals.length===0 && <p className="px-4 py-3 text-xs text-slate-400">No withdrawal requests pending.</p>}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+                <Card className="p-0 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-slate-100 dark:border-white/10 flex items-center justify-between"><h3 className="font-bold text-sm text-navy-700 dark:text-white">Recent activity</h3><Button size="sm" variant="ghost" onClick={()=>setTab('logs')}>Full log</Button></div>
+                  <div className="divide-y divide-slate-50 dark:divide-white/5">
+                    {(logs || []).slice(0,6).map(function(l){
+                      return (
+                        <button key={l.id} onClick={()=>l.user && openByRef(l.user)} className="w-full text-left px-4 py-2.5 flex items-start gap-3 hover:bg-slate-50/60 dark:hover:bg-white/5">
+                          <span className="w-2 h-2 mt-1.5 rounded-full bg-brand shrink-0"/>
+                          <div className="flex-1 min-w-0"><p className="text-sm text-navy-700 dark:text-slate-100"><span className="font-mono text-xs text-brand">{l.action}</span> {l.detail}</p><p className="text-xs text-slate-400">{l.time}{l.actor ? (' · by ' + l.actor) : ''}</p></div>
+                        </button>
+                      );
+                    })}
+                    {(!logs || logs.length===0) && <p className="px-4 py-8 text-center text-sm text-slate-400">No activity yet.</p>}
+                  </div>
+                </Card>
+              </div>
+            </div>
+          ))}
+
+          {/* ===================== USERS ===================== */}
+          {tab==='users' && (!users ? <TableSkeleton rows={6}/> : (
+            (function(){
+              const list = users.filter(function(u){ return !ql || (u.name||'').toLowerCase().indexOf(ql)>=0 || (u.email||'').toLowerCase().indexOf(ql)>=0; });
+              if(list.length===0) return <Card className="p-8 text-center text-sm text-slate-400">No users match “{q}”.</Card>;
+              return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {list.map(function(u){ return <UserCard key={u.id} u={u} onOpen={openUser} onAdjust={adjust} onRole={changeRole}/>; })}
+                </div>
+              );
+            })()
+          ))}
+
+          {/* ===================== TRANSACTIONS ===================== */}
+          {tab==='txns' && (
+            <div className="space-y-3">
+              <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                {['All','Pending','Completed','Failed'].map(function(f){
+                  return <button key={f} onClick={()=>setTxFilter(f)} className={cx('shrink-0 text-xs font-semibold px-3.5 py-2 rounded-full', txFilter===f?'bg-brand text-white':'bg-white dark:bg-navy-800 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300')}>{f}</button>;
+                })}
+              </div>
+              {!txns ? <TableSkeleton rows={6}/> : (function(){
+                const list = txns.filter(function(t){ return txFilter==='All' || t.status===txFilter; });
+                if(list.length===0) return <Card className="p-8 text-center text-sm text-slate-400">No {txFilter==='All'?'':txFilter.toLowerCase()+' '}transactions.</Card>;
+                return <div className="space-y-2.5">{list.map(function(t){ return <TxnCard key={t.id} t={t} onUser={openByRef} onApprove={function(x){ txStatus(x,'Approved'); }} onReject={function(x){ txStatus(x,'Rejected'); }}/>; })}</div>;
+              })()}
+            </div>
+          )}
+
+          {/* ===================== PLANS ===================== */}
+          {tab==='plans' && (!subs ? <TableSkeleton rows={6}/> : (
+            subs.length===0 ? <Card className="p-8 text-center text-sm text-slate-400">No active subscriptions.</Card> : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {subs.map(function(s){ return <AdminSubCard key={s.id} s={s} onUser={openByRef} onCancel={cancelPlan}/>; })}
+              </div>
+            )
+          ))}
+
+          {/* ===================== ACTIVITY LOG ===================== */}
+          {tab==='logs' && (!logs ? <TableSkeleton rows={8}/> : (
+            (function(){
+              const list = logs.filter(function(l){ return !ql || JSON.stringify(l).toLowerCase().indexOf(ql)>=0; });
+              if(list.length===0) return <Card className="p-8 text-center text-sm text-slate-400">No activity matches your search.</Card>;
+              return <div className="space-y-2.5">{list.map(function(l){ return <LogCard key={l.id} l={l} onUser={openByRef}/>; })}</div>;
+            })()
+          ))}
+
+          {/* ===================== REFERRALS ===================== */}
+          {tab==='referrals' && (!refs ? <TableSkeleton rows={6}/> : (
+            (function(){
+              const list = (refs || []).filter(function(x){ return !ql || (x.name||'').toLowerCase().indexOf(ql)>=0 || (x.email||'').toLowerCase().indexOf(ql)>=0 || (x.code||'').toLowerCase().indexOf(ql)>=0; });
+              const totDown = (refs || []).reduce(function(a,x){ return a + (x.referredCount||0); }, 0);
+              const totEarn = (refs || []).reduce(function(a,x){ return a + (x.earned||0); }, 0);
+              const totRefs = (refs || []).filter(function(x){ return (x.referredCount||0) > 0; }).length;
+              return (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <AdKpi label="Active referrers" value={totRefs} icon="M16 11a3 3 0 10-6 0 3 3 0 006 0zM2 21a6 6 0 0112 0" tone="brand"/>
+                    <AdKpi label="People referred" value={totDown} icon="M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0" tone="profit"/>
+                    <AdKpi label="Bonuses paid" value={cedi0(totEarn)} icon="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" tone="amber"/>
+                  </div>
+                  {list.length===0 ? <Card className="p-8 text-center text-sm text-slate-400">No referral data matches your search.</Card> :
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{list.map(function(x){ return <AdminReferralCard key={x.id} r={x} onUser={openByRef}/>; })}</div>}
+                </div>
+              );
+            })()
+          ))}
+        </main>
+      </div>
+
+      {/* ---------- USER DETAIL DRAWER (links every detail together) ---------- */}
+      {sel && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={()=>setSel(null)}/>
+          <div className="relative ml-auto w-full sm:max-w-md bg-slate-50 dark:bg-navy-900 h-full overflow-y-auto shadow-2xl flex flex-col">
+            {/* drawer header */}
+            <div className="sticky top-0 z-10 bg-navy-800 text-white px-5 py-4">
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold">User detail</h3>
+                <button onClick={()=>setSel(null)} className="ml-auto w-8 h-8 grid place-items-center rounded-lg hover:bg-white/10"><Icon d="M6 6l12 12M18 6L6 18" className="w-4 h-4"/></button>
+              </div>
+              <div className="flex items-center gap-3 mt-3">
+                <span className="w-12 h-12 rounded-full bg-brand grid place-items-center font-bold shrink-0">{initials(sel.name)}</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2"><p className="font-semibold truncate">{sel.name}</p><RoleBadge role={sel.role}/></div>
+                  <p className="text-xs text-slate-300 truncate">{sel.email}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 space-y-4">
+              {sel._partial && <Card className="p-3 text-xs text-amber-700 bg-gold-soft">This reference isn’t in the current user list — showing linked records only.</Card>}
+              {/* balances + actions */}
+              <div className="grid grid-cols-2 gap-3">
+                <Card className="p-3"><p className="text-xs text-slate-400">Balance</p><p className="text-xl font-extrabold text-navy-700 dark:text-white">{cedi0(sel.balance)}</p></Card>
+                <Card className="p-3"><p className="text-xs text-slate-400">Available</p><p className="text-xl font-extrabold text-navy-700 dark:text-white">{cedi0(sel.available)}</p></Card>
+              </div>
+              {!sel._partial && (
+                <div className="flex gap-2">
+                  <Button size="sm" variant="primary" className="flex-1" onClick={()=>adjust(sel)}>Adjust wallet</Button>
+                  <Button size="sm" variant="outline" className="flex-1" onClick={()=>changeRole(sel)}>{sel.role==='admin'?'Demote':'Make admin'}</Button>
+                </div>
+              )}
+              {/* registration / credentials */}
+              {!sel._partial && (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Registration details</p>
+                  <Card className="p-3 space-y-2">
+                    <DRow label="User ID" value={'#' + sel.id} mono/>
+                    <DRow label="Full name" value={sel.name}/>
+                    <DRow label="Email" value={sel.email} copy/>
+                    <DRow label="Phone" value={sel.phone} copy/>
+                    <DRow label="Role" value={sel.role}/>
+                    <DRow label="Tier" value={sel.tier}/>
+                    <DRow label="Referral code" value={sel.code} mono copy/>
+                    <DRow label="Invited by" value={sel.referredBy}/>
+                    <DRow label="Joined" value={sel.joined}/>
+                    <DRow label="Account created" value={fmtDateTime(sel.createdAt)}/>
+                    <DRow label="Last login" value={fmtDateTime(sel.lastLogin)}/>
+                    <div className="flex items-start gap-2 pt-2 mt-1 border-t border-slate-100 dark:border-white/10 text-[11px] text-slate-400">
+                      <Icon d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zM8 11V7a4 4 0 118 0v4" className="w-3.5 h-3.5 mt-0.5 shrink-0"/>
+                      <span>Password is stored only as a salted scrypt hash — it can never be viewed or exported, even by an admin.</span>
+                    </div>
+                  </Card>
+                </div>
+              )}
+              {/* linked plans */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Plans ({selSub.length})</p>
+                {selSub.length===0 ? <p className="text-sm text-slate-400">No subscriptions.</p> : <div className="space-y-2.5">{selSub.map(function(s){ return <AdminSubCard key={s.id} s={s} onUser={openByRef} onCancel={cancelPlan}/>; })}</div>}
+              </div>
+              {/* linked transactions */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Transactions ({selTx.length})</p>
+                {selTx.length===0 ? <p className="text-sm text-slate-400">No transactions.</p> : <div className="space-y-2.5">{selTx.map(function(t){ return <TxnCard key={t.id} t={t} onUser={openByRef} onApprove={function(x){ txStatus(x,'Approved'); }} onReject={function(x){ txStatus(x,'Rejected'); }}/>; })}</div>}
+              </div>
+              {/* linked activity */}
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Activity ({selLog.length})</p>
+                {selLog.length===0 ? <p className="text-sm text-slate-400">No activity.</p> : <div className="space-y-2.5">{selLog.map(function(l){ return <LogCard key={l.id} l={l} onUser={openByRef}/>; })}</div>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Referrals (invite & earn 20%) ---------- */
+function Referrals(){
+  const [data,setData]   = useState(null);
+  const [err,setErr]     = useState(false);
+  const [copied,setCopied] = useState('');
+  function load(){ setErr(false); setData(null); api.getReferral().then(setData).catch(function(){ setErr(true); }); }
+  useEffect(load, []);
+  function flash(what){ setCopied(what); setTimeout(function(){ setCopied(''); }, 1600); }
+  if(err) return <ErrorState onRetry={load}/>;
+  const code = data ? data.code : '';
+  const link = data ? buildRefLink(code) : '';
+  const list = data ? (data.referrals || []) : [];
+  function doShare(){
+    if(navigator.share){ navigator.share({ title:'Join me on Swift Investments', text:'Sign up with my referral code ' + code + ' and start earning daily.', url:link }).catch(function(){}); }
+    else { copyText(link); flash('link'); }
+  }
+  const steps = [
+    ['1','Share your link','Send your unique code or link to friends and family.'],
+    ['2','They join & fund','Your friend signs up with your code and makes their first deposit.'],
+    ['3','You earn 20%','20% of every deposit they make is added to your balance — in real time.']
+  ];
+  return (
+    <div className="space-y-5">
+      {/* Hero — code + link */}
+      <div className="rounded-3xl bg-gradient-to-br from-navy-700 to-brand text-white p-5 shadow-pop animate-fadeUp">
+        <div className="flex items-center gap-2 flex-wrap"><span className="text-xs font-semibold uppercase tracking-wider text-slate-200">Invite &amp; earn</span><Badge tone="profit">20% commission</Badge></div>
+        <p className="mt-2 text-slate-200 text-sm">Earn 20% of every deposit your friends make — paid into your wallet in real time.</p>
+        <div className="mt-4 bg-white/10 rounded-2xl p-3">
+          <p className="text-[11px] uppercase tracking-wider text-slate-300">Your referral code</p>
+          {!data ? <div className="h-7 w-40 rounded mt-1 bg-white/20 animate-pulse"/> : (
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-2xl font-extrabold tracking-wide font-mono">{code}</span>
+              <button onClick={function(){ copyText(code); flash('code'); }} className="ml-auto text-xs font-semibold bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5">{copied==='code'?'Copied!':'Copy'}</button>
+            </div>
+          )}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button onClick={function(){ copyText(link); flash('link'); }} className="flex-1 bg-white/15 hover:bg-white/25 rounded-xl py-2.5 text-sm font-semibold flex items-center justify-center gap-2"><Icon d="M13.5 6H7a2 2 0 00-2 2v9a2 2 0 002 2h9a2 2 0 002-2v-1.5M15 4h5v5M20 4l-9 9" className="w-4 h-4"/>{copied==='link'?'Link copied!':'Copy link'}</button>
+          <button onClick={doShare} className="flex-1 bg-white text-navy-700 hover:bg-slate-100 rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2"><Icon d="M4 12v8a1 1 0 001 1h14a1 1 0 001-1v-8M16 6l-4-4-4 4M12 2v14" className="w-4 h-4"/>Share</button>
+        </div>
+      </div>
+      {/* Stats */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card className="p-4"><p className="text-xs text-slate-400">Referred</p><p className="text-2xl font-extrabold text-navy-700 dark:text-white mt-1">{data?data.totalReferred:'…'}</p></Card>
+        <Card className="p-4"><p className="text-xs text-slate-400">Earned</p><p className="text-2xl font-extrabold text-profit mt-1">{data?cedi0(data.totalEarned):'…'}</p></Card>
+        <Card className="p-4"><p className="text-xs text-slate-400">Commission</p><p className="text-2xl font-extrabold text-navy-700 dark:text-white mt-1">20%</p></Card>
+      </div>
+      {/* How it works */}
+      <Card className="p-5">
+        <h3 className="font-bold text-navy-700 dark:text-white">How it works</h3>
+        <div className="mt-3 space-y-3">
+          {steps.map(function(s){ return (
+            <div key={s[0]} className="flex gap-3">
+              <span className="w-7 h-7 rounded-full bg-brand text-white grid place-items-center text-xs font-bold shrink-0">{s[0]}</span>
+              <div><p className="font-semibold text-sm text-navy-700 dark:text-white">{s[1]}</p><p className="text-xs text-slate-500 dark:text-slate-400">{s[2]}</p></div>
+            </div>
+          ); })}
+        </div>
+      </Card>
+      {/* Referred members */}
+      <div>
+        <h3 className="font-bold text-navy-700 dark:text-white mb-2">Your referrals {data && <span className="text-slate-400 font-medium">({list.length})</span>}</h3>
+        {!data ? <TableSkeleton rows={3}/> : (
+          list.length===0 ? (
+            <Card className="p-8 text-center">
+              <div className="text-3xl">🎁</div>
+              <p className="font-semibold text-navy-700 dark:text-white mt-2">No referrals yet</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Share your link to start earning 20% commission.</p>
+              <Button className="mt-4 w-auto px-6 mx-auto" onClick={doShare}>Share your link</Button>
+            </Card>
+          ) : (
+            <div className="space-y-2.5">
+              {list.map(function(r, i){ return (
+                <Card key={r.email||i} className="p-3 flex items-center gap-3">
+                  <span className="w-10 h-10 rounded-full bg-navy-50 dark:bg-white/10 grid place-items-center text-xs font-bold text-navy-700 dark:text-white shrink-0">{initials(r.name)}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-navy-700 dark:text-white truncate">{r.name}</p>
+                    <p className="text-xs text-slate-400 truncate">{r.email}</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Joined {r.joined||'—'} · Deposited {cedi0(r.deposited||0)}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-bold text-profit">+{cedi0(r.earned||0)}</p>
+                    {r.status==='active' ? <Badge tone="profit">active</Badge> : <Badge tone="amber">pending</Badge>}
+                  </div>
+                </Card>
+              ); })}
+            </div>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================================
+   ROUTES MAP   >>> REGISTER A NEW PAGE HERE <<<
+   isPublic:true => standalone; otherwise wrapped in <AppShell/>.
+========================================================================= */
+const ROUTES = {
+  // Opening the site goes straight to the login page.
+  '/':             { comp:Login,        isPublic:true },
+  '/welcome':      { comp:Landing,      isPublic:true },   // public marketing page (kept for future use)
+  '/login':        { comp:Login,        isPublic:true },
+  '/register':     { comp:Register,     isPublic:true },
+  '/dashboard':    { comp:Dashboard,    title:'Home' },
+  '/plans':        { comp:Plans,        title:'Plans' },
+  '/deposit':      { comp:Deposit,      title:'Deposit' },
+  '/payment':      { comp:Payment,      title:'Payment' },
+  '/withdraw':     { comp:Withdraw,     title:'Withdraw' },
+  '/transactions': { comp:Transactions, title:'Transactions' },
+  '/referrals':    { comp:Referrals,    title:'Referrals' },
+  '/account':      { comp:Account,      title:'Account' },
+  '/admin':        { comp:Admin,        isPublic:true }   // <-- admins only (gated inside)
+  // '/reports':   { comp:Reports, title:'Reports' },  // <-- add future pages here
+};
+/* Brief full-screen splash shown while the session probe resolves or a redirect
+   is in flight, so protected content never flashes for a signed-out visitor. */
+function AuthSplash(){
+  return (
+    <div className="min-h-screen grid place-items-center bg-slate-50 dark:bg-navy-900">
+      <div className="flex flex-col items-center gap-3">
+        <Logo/>
+        <div className="w-6 h-6 rounded-full border-2 border-slate-300 border-t-brand animate-spin"/>
+      </div>
+    </div>
+  );
+}
+function Router(){
+  const route = useHashRoute();
+  const { authed, authReady } = useApp();
+  const key = Object.keys(ROUTES).find(function(k){ return k!=='/' && route.startsWith(k); }) || (route==='/'?'/':null);
+  const match = key ? ROUTES[key] : null;
+  const isPublic = match ? !!match.isPublic : true;
+  const onAuthScreen = (route === '/' || route.indexOf('/login') === 0 || route.indexOf('/register') === 0);
+  // Guard: signed-in users skip the auth screens; guests can't open private pages.
+  useEffect(function(){
+    if(!authReady) return;
+    if(authed && onAuthScreen){ go('/dashboard'); }
+    else if(!authed && match && !isPublic){ go('/login'); }
+  }, [route, authed, authReady, isPublic, onAuthScreen, match]);
+  if(!authReady) return <AuthSplash/>;
+  if(!match){
+    return <div className="max-w-md mx-auto min-h-screen grid place-items-center text-center p-6"><div><p className="text-6xl font-extrabold text-navy-200">404</p><p className="mt-2 text-slate-500">Page not found.</p><Button className="mt-4 w-auto px-6" onClick={()=>go(authed?'/dashboard':'/login')}>Go home</Button></div></div>;
+  }
+  if((authed && onAuthScreen) || (!authed && !isPublic)) return <AuthSplash/>;   // brief hold while the effect redirects
+  const Comp = match.comp;
+  if(match.isPublic) return <Comp/>;
+  return <AppShell route={route} title={match.title}><Comp/></AppShell>;
+}
+/* Error boundary: a render error shows a friendly screen instead of a blank page. */
+class ErrorBoundary extends React.Component {
+  constructor(props){ super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error){ return { error: error }; }
+  componentDidCatch(error, info){ console.error('[Swift] UI error:', error, info); }
+  render(){
+    if(this.state.error){
+      const self = this;
+      return (
+        <div className="min-h-screen grid place-items-center bg-slate-50 dark:bg-navy-900 p-6 text-center">
+          <div className="max-w-sm">
+            <div className="text-4xl">⚠️</div>
+            <h2 className="text-lg font-bold text-navy-700 dark:text-white mt-2">Something went wrong</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">This screen hit an unexpected error. Reload, or head back to your dashboard.</p>
+            <div className="flex gap-2 justify-center mt-4">
+              <button onClick={function(){ self.setState({ error:null }); go('/dashboard'); }} className="px-4 py-2 rounded-xl bg-brand text-white text-sm font-semibold">Go to dashboard</button>
+              <button onClick={function(){ location.reload(); }} className="px-4 py-2 rounded-xl border border-slate-200 dark:border-white/10 text-sm font-semibold">Reload</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+function App(){ return <ErrorBoundary><AppProvider><Router/></AppProvider></ErrorBoundary>; }
+try {
+  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+} catch(err){
+  if(typeof swiftShowError==='function') swiftShowError('The app failed to start', (err && err.message) || String(err));
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+# =============================================================================
+# RENDER BLUEPRINT — backend files live at the REPO ROOT, so there is NO
+# "Root Directory" to set. Hosts the whole app (front-end + API) on ONE URL,
+# backed by your Neon PostgreSQL database. See DEPLOY-README.md for steps.
+# =============================================================================
+services:
+  - type: web
+    name: swift-investments
+    runtime: node
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "node server.js"
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22.12.0"
+      # Your Neon connection string. Marked sync:false so you paste it securely
+      # in the Render dashboard (Environment tab) — never committed to git.
+      - key: DATABASE_URL
+        sync: false
